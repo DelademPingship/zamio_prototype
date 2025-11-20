@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:zamio/RadioSniffer.dart';
-import 'package:zamio/ui/queue_page.dart';
-import 'package:zamio/ui/logs_page.dart';
-import 'package:zamio/ui/settings_page.dart';
+import 'RadioSniffer.dart';
+import 'ui/queue_page.dart';
+import 'ui/logs_page.dart';
+import 'ui/settings_page.dart';
 
 class HomeScaffold extends StatefulWidget {
   const HomeScaffold({super.key});

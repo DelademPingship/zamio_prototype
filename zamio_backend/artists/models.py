@@ -510,7 +510,7 @@ class Track(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="Pending")
 
     is_archived = models.BooleanField(default=False)
-    active = models.BooleanField(default=False)
+    active = models.BooleanField(default=True)  # Changed to True so tracks are active by default for matching
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -407,36 +407,98 @@ def upload_audio_match(request):
 
     try:
         try:
+            # Validate file size (max 5MB)
+            MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
+            if audio_file.size > MAX_UPLOAD_SIZE:
+                logger.warning(f"File too large: {audio_file.size} bytes (max: {MAX_UPLOAD_SIZE})")
+                return Response(
+                    {'error': 'File too large', 'detail': f'Maximum file size is 5MB. Received: {audio_file.size / 1024 / 1024:.2f}MB'},
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+                )
+            
             # Save file temporarily, then decode to WAV mono 44.1kHz
             suffix = Path(getattr(audio_file, 'name', '')).suffix or '.aac'
+            logger.info(f"Received audio file with suffix: {suffix}, size: {audio_file.size} bytes")
+            
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_in:
                 for c in audio_file.chunks():
                     temp_in.write(c)
                 temp_in_path = temp_in.name
+            
+            logger.info(f"Saved temp input file: {temp_in_path}, size: {os.path.getsize(temp_in_path)} bytes")
 
             with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_out:
                 temp_out_path = temp_out.name
 
             try:
-                logger.info(f"Converting {temp_in_path} to WAV using ffmpeg")
+                logger.info(f"Converting {temp_in_path} (suffix: {suffix}) to WAV using ffmpeg")
+                
+                # More robust ffmpeg conversion with error recovery
+                # Use -y to overwrite, -loglevel error for cleaner logs
+                # Add -vn to ignore video streams, -sn to ignore subtitles
                 (
                     ffmpeg
-                    .input(temp_in_path)
-                    .output(temp_out_path, f='wav', ar=44100, ac=1)
+                    .input(temp_in_path, **{'loglevel': 'error'})
+                    .output(
+                        temp_out_path,
+                        format='wav',
+                        acodec='pcm_s16le',
+                        ar=44100,
+                        ac=1,
+                        **{'vn': None, 'sn': None}  # No video, no subtitles
+                    )
                     .overwrite_output()
-                    .run(quiet=True, capture_stdout=True, capture_stderr=True)
+                    .run(capture_stdout=True, capture_stderr=True)
                 )
                 logger.info(f"FFmpeg conversion successful: {temp_out_path}")
+                
+                # Verify the output file exists and has content
+                if not os.path.exists(temp_out_path):
+                    raise Exception("FFmpeg output file does not exist")
+                    
+                output_size = os.path.getsize(temp_out_path)
+                if output_size == 0:
+                    raise Exception("FFmpeg produced empty output file")
+                    
+                logger.info(f"Converted file size: {output_size} bytes")
+                    
             except ffmpeg.Error as e:
-                logger.error(f"FFmpeg conversion failed: {e.stderr.decode() if e.stderr else str(e)}")
-                # Fallback to original content if decode fails
-                temp_out_path = temp_in_path
-                logger.warning(f"Using original file format: {temp_in_path}")
+                error_msg = e.stderr.decode() if e.stderr else str(e)
+                logger.error(f"FFmpeg conversion failed: {error_msg}")
+                
+                # Clean up temp files
+                try:
+                    os.remove(temp_in_path)
+                    if os.path.exists(temp_out_path):
+                        os.remove(temp_out_path)
+                except Exception:
+                    pass
+                
+                return Response(
+                    {
+                        'error': 'Audio format conversion failed',
+                        'detail': f'Could not convert {suffix} to WAV format. FFmpeg error: {error_msg[:200]}'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             except Exception as e:
                 logger.error(f"Unexpected error during ffmpeg conversion: {str(e)}", exc_info=True)
-                # Fallback to original content if decode fails
-                temp_out_path = temp_in_path
-                logger.warning(f"Using original file format: {temp_in_path}")
+                
+                # Clean up temp files
+                try:
+                    os.remove(temp_in_path)
+                    if os.path.exists(temp_out_path):
+                        os.remove(temp_out_path)
+                except Exception:
+                    pass
+                
+                return Response(
+                    {
+                        'error': 'Audio processing failed',
+                        'detail': f'Unexpected error during audio conversion: {str(e)}'
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             # Audio processing with enhanced error handling
             samples = None
@@ -492,10 +554,21 @@ def upload_audio_match(request):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
-            # Collect all known fingerprints
-            fingerprints = Fingerprint.objects.select_related('track').values_list('track_id', 'hash', 'offset')
-            fingerprints = list(fingerprints)
-            logger.info(f"Loaded {len(fingerprints)} fingerprints from database")
+            # Collect all known fingerprints with caching
+            from django.core.cache import cache
+            
+            cache_key = 'fingerprints_index_v1'
+            fingerprints = cache.get(cache_key)
+            
+            if fingerprints is None:
+                # Convert hash from string to int for matching
+                fingerprints_raw = Fingerprint.objects.select_related('track').values_list('track_id', 'hash', 'offset')
+                fingerprints = [(track_id, int(hash_str), offset) for track_id, hash_str, offset in fingerprints_raw]
+                # Cache for 1 hour
+                cache.set(cache_key, fingerprints, timeout=3600)
+                logger.info(f"Loaded {len(fingerprints)} fingerprints from database (cached)")
+            else:
+                logger.info(f"Loaded {len(fingerprints)} fingerprints from cache")
 
             try:
                 logger.info(f"Starting fingerprint matching with {len(samples)} samples")

@@ -16,21 +16,25 @@ User = get_user_model()
 fake = Faker()
 
 
-GENRES = ["HipHop", "Gosple", "Jazz", "Afro Pop", "Rock", "HighLife"]
-COLORS = ["#007256", "#AA00BA", "#E30090", "#F0EC04", "#10B981", "#313D4A"]
+GENRES = ["HipHop", "Gospel", "Jazz", "Afro Pop", "Rock", "HighLife"]
 
 class Command(BaseCommand):
-    help = 'Generate random Artist profiles with linked Users, Albums, Tracks, Contributors, Feedbacks, and Fingerprints'
+    help = 'Generate genres in the database'
 
 
     def handle(self, *args, **options):
+        created_count = 0
         for genre in GENRES:
-            new_genre = Genre.objects.create(
-                name=genre, 
-                color=random.choice(COLORS),
-                )
+            genre_obj, created = Genre.objects.get_or_create(
+                name=genre,
+                defaults={'description': f'{genre} music genre'}
+            )
+            if created:
+                created_count += 1
+                self.stdout.write(self.style.SUCCESS(f"Created genre: {genre}"))
+            else:
+                self.stdout.write(f"Genre already exists: {genre}")
 
         self.stdout.write(self.style.SUCCESS(
-            f"\n✅ Successfully created Genres created"
+            f"\n✅ Successfully created {created_count} new genres"
         ))
-#python manage.py generate_genre

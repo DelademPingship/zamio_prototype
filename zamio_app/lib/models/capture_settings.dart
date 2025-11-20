@@ -10,14 +10,14 @@ class CaptureSettings {
   final bool autoDeleteCompleted;
 
   const CaptureSettings({
-    this.intervalSeconds = 10,
-    this.durationSeconds = 10,
-    this.quality = AudioQuality.standard,
-    this.batteryOptimized = true,
-    this.maxRetries = 3,
+    this.intervalSeconds = 15,           // Capture every 15 seconds (reduced overlap)
+    this.durationSeconds = 15,           // 15 second captures (better for detection)
+    this.quality = AudioQuality.standard, // 44.1kHz recommended
+    this.batteryOptimized = false,       // Prioritize detection quality over battery
+    this.maxRetries = 5,                 // Increased retries for reliability
     this.retryDelaySeconds = 30,
-    this.compressBeforeStorage = true,
-    this.maxStorageMB = 100,
+    this.compressBeforeStorage = false,  // Don't compress - maintain quality
+    this.maxStorageMB = 200,             // Increased storage limit
     this.autoDeleteCompleted = true,
   });
 
@@ -75,9 +75,10 @@ class CaptureSettings {
 }
 
 enum AudioQuality {
-  low(sampleRate: 8000, bitRate: 16000, channels: 1),
-  standard(sampleRate: 16000, bitRate: 24000, channels: 1),
-  high(sampleRate: 22050, bitRate: 32000, channels: 1);
+  // Optimized for music detection - backend expects 44.1kHz
+  low(sampleRate: 22050, bitRate: 64000, channels: 1),      // Battery saving mode
+  standard(sampleRate: 44100, bitRate: 96000, channels: 1), // Recommended for detection
+  high(sampleRate: 44100, bitRate: 128000, channels: 1);    // Best quality
 
   const AudioQuality({
     required this.sampleRate,
@@ -92,11 +93,11 @@ enum AudioQuality {
   String get displayName {
     switch (this) {
       case AudioQuality.low:
-        return 'Low (8kHz)';
+        return 'Low (22kHz, 64kbps) - Battery Saving';
       case AudioQuality.standard:
-        return 'Standard (16kHz)';
+        return 'Standard (44kHz, 96kbps) - Recommended';
       case AudioQuality.high:
-        return 'High (22kHz)';
+        return 'High (44kHz, 128kbps) - Best Quality';
     }
   }
 }

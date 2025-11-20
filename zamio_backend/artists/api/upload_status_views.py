@@ -307,7 +307,8 @@ def initiate_non_blocking_upload(request):
                     release_date=release_date_obj,
                     explicit=metadata['explicit'],
                     lyrics=metadata['lyrics'],
-                    processing_status='queued'
+                    processing_status='queued',
+                    active=True  # Ensure track is active for matching
                 )
             else:
                 track_updates = []

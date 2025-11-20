@@ -22,14 +22,15 @@ from music_monitor.views.views import (
     get_matchcache_list,
     get_playlog_list,
 )
-from music_monitor.views.enhanced_fingerprinting_views import (
-    fingerprint_track,
-    batch_fingerprint_tracks,
-    fingerprint_task_status,
-    fingerprint_statistics,
-    auto_fingerprint_new,
-    track_fingerprint_status,
-)
+# Enhanced fingerprinting views disabled - using simple algorithm
+# from music_monitor.views.enhanced_fingerprinting_views import (
+#     fingerprint_track,
+#     batch_fingerprint_tracks,
+#     fingerprint_task_status,
+#     fingerprint_statistics,
+#     auto_fingerprint_new,
+#     track_fingerprint_status,
+# )
 from music_monitor.views.acrcloud_views import (
     test_acrcloud_identification,
     test_hybrid_detection,
@@ -76,13 +77,13 @@ urlpatterns = [
     path("match-dispute-details/", get_match_dispute_details_view, name="get_match_dispute_details_view"),
     path("review-match-for-dispute/", review_match_for_dispute, name="review_match_for_dispute"),
     
-    # Enhanced Fingerprinting Endpoints
-    path("fingerprint/track/", fingerprint_track, name="fingerprint_track"),
-    path("fingerprint/batch/", batch_fingerprint_tracks, name="batch_fingerprint_tracks"),
-    path("fingerprint/task/<str:task_id>/", fingerprint_task_status, name="fingerprint_task_status"),
-    path("fingerprint/stats/", fingerprint_statistics, name="fingerprint_statistics"),
-    path("fingerprint/auto/", auto_fingerprint_new, name="auto_fingerprint_new"),
-    path("fingerprint/track/<int:track_id>/status/", track_fingerprint_status, name="track_fingerprint_status"),
+    # Enhanced Fingerprinting Endpoints - DISABLED (using simple algorithm)
+    # path("fingerprint/track/", fingerprint_track, name="fingerprint_track"),
+    # path("fingerprint/batch/", batch_fingerprint_tracks, name="batch_fingerprint_tracks"),
+    # path("fingerprint/task/<str:task_id>/", fingerprint_task_status, name="fingerprint_task_status"),
+    # path("fingerprint/stats/", fingerprint_statistics, name="fingerprint_statistics"),
+    # path("fingerprint/auto/", auto_fingerprint_new, name="auto_fingerprint_new"),
+    # path("fingerprint/track/<int:track_id>/status/", track_fingerprint_status, name="track_fingerprint_status"),
     
     # ACRCloud Integration Endpoints
     path("acrcloud/test-identification/", test_acrcloud_identification, name="test_acrcloud_identification"),

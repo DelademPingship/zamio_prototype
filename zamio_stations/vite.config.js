@@ -15,10 +15,20 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 4174,
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
+      hmr: {
+        overlay: false,
+      },
       proxy: {
         '/api': { target, changeOrigin, secure: false },
         '/media': { target, changeOrigin, secure: false },
       },
+    },
+    optimizeDeps: {
+      exclude: ['fsevents'],
     },
   }
 })

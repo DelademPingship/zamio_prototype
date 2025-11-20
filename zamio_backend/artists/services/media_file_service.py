@@ -113,7 +113,30 @@ class MediaFileService:
         content = file.read(10240)  # Read first 10KB
         file.seek(0)
         
-        # Check for malware patterns
+        # Check for executable headers first
+        if content.startswith(b'MZ') or content.startswith(b'\x7fELF'):
+            errors.append('Executable files are not allowed')
+            return
+        
+        # For audio/image files, skip script detection as metadata can contain these patterns
+        if file_type in ['audio', 'image']:
+            # Only check for actual executable code patterns, not metadata
+            dangerous_patterns = [
+                b'<?php',
+                b'#!/bin/sh',
+                b'#!/bin/bash',
+                b'#!/usr/bin/python',
+                b'powershell.exe',
+                b'cmd.exe /c',
+            ]
+            
+            content_lower = content.lower()
+            for pattern in dangerous_patterns:
+                if pattern in content_lower:
+                    errors.append(f'File contains potentially malicious content: {pattern.decode("utf-8", errors="ignore")}')
+            return
+        
+        # For other file types, do full malware pattern check
         malware_patterns = [
             b'eval(', b'exec(', b'system(', b'shell_exec(',
             b'<script', b'javascript:', b'vbscript:',
@@ -124,10 +147,6 @@ class MediaFileService:
         for pattern in malware_patterns:
             if pattern in content_lower:
                 errors.append(f'File contains potentially malicious content: {pattern.decode("utf-8", errors="ignore")}')
-        
-        # Check for executable headers
-        if content.startswith(b'MZ') or content.startswith(b'\x7fELF'):
-            errors.append('Executable files are not allowed')
         
         # Validate image files
         if file_type == 'image':
@@ -177,6 +196,176 @@ class MediaFileService:
         file_hash = hashlib.sha256(file_content).hexdigest()
         file.seek(0)
         return file_hash
+    
+    @classmethod
+    def initiate_media_upload(
+        cls,
+        user,
+        file: UploadedFile,
+        media_type: str,
+        entity_type: str,
+        entity_id: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Initiate media upload with validation and async processing
+        
+        Args:
+            user: The user uploading the file
+            file: The uploaded file
+            media_type: 'audio' or 'image'
+            entity_type: 'track' or 'album'
+            entity_id: Optional ID of existing entity to update
+            metadata: Optional metadata dict
+            
+        Returns:
+            Dict with upload_id and status
+        """
+        import uuid
+        from django.core.files.storage import default_storage
+        from artists.models import UploadProcessingStatus, Artist
+        from artists.tasks import process_track_upload, process_cover_art_upload
+        
+        # Validate the file
+        validation_result = cls.validate_media_file(file, media_type)
+        
+        # Get or verify artist
+        try:
+            artist = Artist.objects.get(user=user)
+        except Artist.DoesNotExist:
+            raise ValidationError('User must have an artist profile to upload media')
+        
+        # Generate upload ID
+        upload_id = str(uuid.uuid4())
+        
+        # Save file to temporary storage
+        file_ext = os.path.splitext(file.name)[1].lower()
+        temp_filename = f"{entity_type}_{media_type}_{uuid.uuid4().hex[:16]}{file_ext}"
+        temp_path = f"temp/{temp_filename}"
+        
+        # Save the uploaded file to storage
+        saved_path = default_storage.save(temp_path, file)
+        
+        # Create or update entity
+        if entity_type == 'track':
+            if entity_id:
+                track = Track.objects.get(id=entity_id, artist=artist)
+            else:
+                # Create new track with metadata
+                track = Track.objects.create(
+                    artist=artist,
+                    title=metadata.get('title', 'Untitled'),
+                    explicit=metadata.get('explicit', False),
+                    lyrics=metadata.get('lyrics', ''),
+                    genre_id=metadata.get('genre_id'),
+                    album_id=metadata.get('album_id'),
+                    processing_status='pending',
+                    active=True  # Ensure track is active for matching
+                )
+                entity_id = track.id
+        elif entity_type == 'album':
+            if entity_id:
+                album = Album.objects.get(id=entity_id, artist=artist)
+            else:
+                # Create new album with metadata
+                album = Album.objects.create(
+                    artist=artist,
+                    title=metadata.get('title', 'Untitled Album'),
+                    release_date=metadata.get('release_date')
+                )
+                entity_id = album.id
+        
+        # Create upload processing status
+        upload_status = UploadProcessingStatus.objects.create(
+            upload_id=upload_id,
+            user=user,
+            upload_type=f"{entity_type}_{media_type}",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            status='pending',
+            metadata={
+                'original_filename': file.name,
+                'file_size': file.size,
+                'content_type': file.content_type,
+                'internal_temp_storage_path': saved_path,
+                **(metadata or {})
+            }
+        )
+        
+        # Queue async processing task
+        if media_type == 'audio' and entity_type == 'track':
+            process_track_upload.delay(
+                upload_id=upload_id,
+                track_id=entity_id,
+                source_file_path=saved_path,
+                original_filename=file.name,
+                user_id=user.id
+            )
+        elif media_type == 'image' and entity_type == 'track':
+            process_cover_art_upload.delay(
+                upload_id=upload_id,
+                track_id=entity_id,
+                source_file_path=saved_path,
+                original_filename=file.name,
+                user_id=user.id
+            )
+        elif media_type == 'image' and entity_type == 'album':
+            # Similar processing for album cover
+            process_cover_art_upload.delay(
+                upload_id=upload_id,
+                track_id=entity_id,  # Reuse same task, just different entity
+                source_file_path=saved_path,
+                original_filename=file.name,
+                user_id=user.id
+            )
+        
+        # Log the upload initiation
+        AuditLog.objects.create(
+            user=user,
+            action='media_upload_initiated',
+            resource_type=entity_type,
+            resource_id=str(entity_id),
+            request_data={
+                'upload_id': upload_id,
+                'media_type': media_type,
+                'filename': file.name,
+                'file_size': file.size
+            },
+            status_code=202
+        )
+        
+        return {
+            'upload_id': upload_id,
+            'entity_id': entity_id,
+            'entity_type': entity_type,
+            'status': 'processing',
+            'message': f'{media_type.capitalize()} upload initiated successfully'
+        }
+    
+    @classmethod
+    def get_upload_status(cls, upload_id: str) -> Dict[str, Any]:
+        """Get the status of an upload"""
+        from artists.models import UploadProcessingStatus
+        
+        try:
+            status = UploadProcessingStatus.objects.get(upload_id=upload_id)
+            return {
+                'upload_id': upload_id,
+                'status': status.status,
+                'progress_percentage': status.progress_percentage,
+                'current_step': status.current_step,
+                'error_message': status.error_message,
+                'entity_type': status.entity_type,
+                'entity_id': status.entity_id,
+                'created_at': status.created_at.isoformat() if status.created_at else None,
+                'completed_at': status.completed_at.isoformat() if status.completed_at else None
+            }
+        except UploadProcessingStatus.DoesNotExist:
+            return {
+                'upload_id': upload_id,
+                'status': 'not_found',
+                'error_message': 'Upload not found'
+            }
     
     @classmethod
     def process_track_upload(
@@ -231,6 +420,7 @@ class MediaFileService:
             audio_file_hash=audio_hash,
             cover_art_hash=cover_hash,
             processing_status='pending',
+            active=True,  # Ensure track is active for matching
             **{k: v for k, v in track_data.items() if k in [
                 'genre', 'release_date', 'lyrics', 'explicit', 'album'
             ]}

@@ -37,6 +37,12 @@ class OfflineCaptureService extends ChangeNotifier {
   int _totalCapturesCompleted = 0;
   int _totalCapturesFailed = 0;
   int _currentStorageUsedMB = 0;
+  
+  // Detection results
+  int _detectionsToday = 0;
+  int _successfulDetectionsToday = 0;
+  String? _lastDetectionStatus;
+  String? _lastMatchedSong;
 
   // Getters
   bool get isInitialized => _isInitialized;
@@ -51,6 +57,12 @@ class OfflineCaptureService extends ChangeNotifier {
   int get totalCapturesFailed => _totalCapturesFailed;
   int get currentStorageUsedMB => _currentStorageUsedMB;
   
+  // Detection stats
+  int get detectionsToday => _detectionsToday;
+  int get successfulDetectionsToday => _successfulDetectionsToday;
+  String? get lastDetectionStatus => _lastDetectionStatus;
+  String? get lastMatchedSong => _lastMatchedSong;
+  
   double get captureProgress {
     if (_currentCaptureStartTime == null || !_isCapturing) return 0.0;
     final elapsed = DateTime.now().difference(_currentCaptureStartTime!).inSeconds;
@@ -61,7 +73,18 @@ class OfflineCaptureService extends ChangeNotifier {
     if (_isInitialized) return;
 
     try {
+      debugPrint('Initializing OfflineCaptureService...');
+      
+      // Close recorder if it was previously opened
+      try {
+        await _recorder.closeRecorder();
+      } catch (_) {
+        // Ignore errors if recorder wasn't open
+      }
+      
       await _recorder.openRecorder();
+      debugPrint('Recorder opened successfully');
+      
       await _loadSettings();
       await _updateStatistics();
       
@@ -72,6 +95,7 @@ class OfflineCaptureService extends ChangeNotifier {
       );
       
       _isInitialized = true;
+      debugPrint('OfflineCaptureService initialized');
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to initialize OfflineCaptureService: $e');
@@ -189,6 +213,8 @@ class OfflineCaptureService extends ChangeNotifier {
       _currentCaptureStartTime = timestamp;
 
       // Start recording
+      debugPrint('Starting recording: $filePath (${_settings.durationSeconds}s, ${_settings.quality.sampleRate}Hz, ${_settings.quality.bitRate}bps)');
+      
       await _recorder.startRecorder(
         toFile: filePath,
         codec: Codec.aacADTS,
@@ -197,10 +223,18 @@ class OfflineCaptureService extends ChangeNotifier {
         bitRate: _settings.quality.bitRate,
       );
 
+      // Verify recording actually started
+      if (!_recorder.isRecording) {
+        throw Exception('Recorder failed to start');
+      }
+
+      debugPrint('Recording started successfully');
+
       // Schedule stop after duration
-      Timer(Duration(seconds: _settings.durationSeconds), () {
-        if (_currentCapture?.id == captureId) {
-          _stopCurrentRecording();
+      Timer(Duration(seconds: _settings.durationSeconds), () async {
+        if (_currentCapture?.id == captureId && _recorder.isRecording) {
+          debugPrint('Timer triggered - stopping recording for capture: $captureId');
+          await _stopCurrentRecording();
         }
       });
 
@@ -220,20 +254,30 @@ class OfflineCaptureService extends ChangeNotifier {
     }
 
     try {
+      // Stop the recorder and wait for it to complete
       await _recorder.stopRecorder();
+      
+      // Give the system a moment to flush the file
+      await Future.delayed(const Duration(milliseconds: 100));
       
       final file = File(_currentFilePath!);
       if (!file.existsSync()) {
         throw Exception('Recorded file does not exist');
       }
 
+      // Check file size before processing
+      final fileSize = await file.length();
+      if (fileSize == 0) {
+        throw Exception('Recorded file is empty (0 bytes)');
+      }
+
       // Validate and potentially compress the file
       final processedFile = await _processAudioFile(file);
-      final fileSize = await processedFile.length();
+      final finalFileSize = await processedFile.length();
 
       // Update capture with actual file size
       final updatedCapture = _currentCapture!.copyWith(
-        fileSizeBytes: fileSize,
+        fileSizeBytes: finalFileSize,
         filePath: processedFile.path,
       );
 
@@ -243,10 +287,23 @@ class OfflineCaptureService extends ChangeNotifier {
       // Update statistics
       await _updateStatistics();
       
-      debugPrint('Capture completed: ${updatedCapture.id} (${fileSize} bytes)');
+      debugPrint('Capture completed: ${updatedCapture.id} ($finalFileSize bytes)');
       
     } catch (e) {
       debugPrint('Failed to complete capture: $e');
+      
+      // Clean up the empty/invalid file
+      if (_currentFilePath != null) {
+        try {
+          final file = File(_currentFilePath!);
+          if (file.existsSync()) {
+            await file.delete();
+            debugPrint('Deleted invalid capture file: $_currentFilePath');
+          }
+        } catch (deleteError) {
+          debugPrint('Failed to delete invalid file: $deleteError');
+        }
+      }
       
       // Mark as failed if we have a capture record
       if (_currentCapture != null) {
@@ -336,6 +393,31 @@ class OfflineCaptureService extends ChangeNotifier {
       await _updateStatistics();
       notifyListeners();
     }
+  }
+  
+  void updateDetectionResult(Map<String, dynamic> response) {
+    _detectionsToday++;
+    
+    final matched = response['match'] ?? false;
+    if (matched) {
+      _successfulDetectionsToday++;
+      final trackTitle = response['track_title'] ?? 'Unknown';
+      final artistName = response['artist_name'] ?? '';
+      _lastMatchedSong = artistName.isNotEmpty ? '$trackTitle - $artistName' : trackTitle;
+      _lastDetectionStatus = 'Match found!';
+    } else {
+      final reason = response['reason'] ?? 'No match';
+      _lastDetectionStatus = reason;
+      _lastMatchedSong = null;
+    }
+    
+    notifyListeners();
+  }
+  
+  void resetDailyStats() {
+    _detectionsToday = 0;
+    _successfulDetectionsToday = 0;
+    notifyListeners();
   }
 
   Future<void> _performCleanup() async {

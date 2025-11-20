@@ -88,8 +88,8 @@ def get_artist_homedata(request):
 
     totalPlays = playlogs.count()
     totalStations = playlogs.values('station').distinct().count()
-    totalEarnings = playlogs.aggregate(total=Sum('royalty_amount'))['total'] or 0
-    confidence_score = playlogs.aggregate(avg=Avg('avg_confidence_score'))['avg'] or 0
+    totalEarnings = float(playlogs.aggregate(total=Sum('royalty_amount'))['total'] or 0)
+    confidence_score = float(playlogs.aggregate(avg=Avg('avg_confidence_score'))['avg'] or 0)
     active_regions = playlogs.values('station__region').exclude(station__region__isnull=True).distinct().count()
     active_tracks = playlogs.values('track').distinct().count()
 
@@ -353,18 +353,17 @@ def get_artist_homedata(request):
     stats_summary = {
         "totalPlays": totalPlays,
         "totalStations": totalStations,
-        "totalEarnings": round(float(totalEarnings), 2) if totalEarnings else 0.0,
-        "avgConfidence": round(float(confidence_score), 1) if confidence_score else 0.0,
+        "totalEarnings": round(totalEarnings, 2),
+        "avgConfidence": round(confidence_score, 1),
         "growthRate": growth_rate,
         "activeTracks": active_tracks,
     }
 
-    confidence_value = float(confidence_score) if confidence_score else 0.0
     targets = {
         "airplayTarget": totalPlays + max(5, int(totalPlays * 0.15)) if totalPlays else 10,
-        "earningsTarget": round(float(totalEarnings) * 1.2 + 50, 2) if totalEarnings else 100.0,
+        "earningsTarget": round(totalEarnings * 1.2 + 50, 2) if totalEarnings else 100.0,
         "stationsTarget": totalStations + max(1, int(totalStations * 0.1)) if totalStations else 3,
-        "confidenceTarget": min(100.0, round(confidence_value + 5.0, 1)),
+        "confidenceTarget": min(100.0, round(confidence_score + 5.0, 1)),
     }
 
     data.update({
@@ -373,7 +372,7 @@ def get_artist_homedata(request):
         "end_date": ed_str,
         "artistName": artist.stage_name,
         "stats": stats_summary,
-        "confidenceScore": round(float(confidence_score), 1) if confidence_score else 0.0,
+        "confidenceScore": round(confidence_score, 1),
         "activeRegions": active_regions,
         "topSongs": topSongs,
         "playsOverTime": playsOverTime,

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from stations.models import ProgramStaff, Station, StationProgram, StationStreamLink, Complaint, ComplaintUpdate
+from stations.models import ProgramStaff, Station, StationProgram, StationStreamLink, Complaint, ComplaintUpdate, StationStaff
 
 
 @admin.register(Complaint)
@@ -43,5 +43,6 @@ class ComplaintUpdateAdmin(admin.ModelAdmin):
 # Register your models here.
 admin.site.register(Station)
 admin.site.register(StationStreamLink)
+admin.site.register(StationStaff)
 admin.site.register(StationProgram)
 admin.site.register(ProgramStaff)

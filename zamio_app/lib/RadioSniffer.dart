@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 // flutter_sound removed - OfflineCaptureService handles recording
 // import 'package:flutter_sound/flutter_sound.dart';
@@ -14,6 +15,7 @@ import 'package:zamio/services/offline_capture_service.dart';
 import 'package:zamio/services/connectivity_service.dart';
 import 'package:zamio/services/storage_service.dart';
 import 'package:zamio/models/capture_settings.dart';
+import 'package:zamio/queue_page.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -52,7 +54,7 @@ class _StatusPageState extends State<StatusPage> with SingleTickerProviderStateM
   String _stationId = '';
   String _authToken = '';
   String get _uploadUrl {
-    final base = _backendBase.isNotEmpty ? _backendBase : 'http://192.168.43.121:8000/';
+    final base = _backendBase.isNotEmpty ? _backendBase : 'http://192.168.43.15:8000/';
     final normalized = base.endsWith('/') ? base : (base + '/');
     return normalized + 'api/music-monitor/stream/upload/';
   }
@@ -249,6 +251,35 @@ class _StatusPageState extends State<StatusPage> with SingleTickerProviderStateM
         }
         
         if (response.statusCode == 200 || response.statusCode == 201) {
+          // Parse detection result
+          try {
+            final jsonResponse = json.decode(body);
+            _captureService.updateDetectionResult(jsonResponse);
+            
+            // Show notification for matches
+            if (jsonResponse['match'] == true && mounted) {
+              final trackTitle = jsonResponse['track_title'] ?? 'Unknown';
+              final artistName = jsonResponse['artist_name'] ?? '';
+              final songInfo = artistName.isNotEmpty ? '$trackTitle - $artistName' : trackTitle;
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text('🎵 Detected: $songInfo')),
+                    ],
+                  ),
+                  backgroundColor: Colors.green.shade700,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Failed to parse detection result: $e');
+          }
+          
           await file.delete();
           setState(() => _lastUploadAt = DateTime.now());
           return;
@@ -355,6 +386,17 @@ class _StatusPageState extends State<StatusPage> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 16),
 
+                  // Detection result card (NEW)
+                  if (_captureService.lastMatchedSong != null || _captureService.lastDetectionStatus != null)
+                    _DetectionResultCard(
+                      matched: _captureService.lastMatchedSong != null,
+                      songInfo: _captureService.lastMatchedSong,
+                      status: _captureService.lastDetectionStatus ?? '',
+                      detectionsToday: _captureService.successfulDetectionsToday,
+                    ),
+                  if (_captureService.lastMatchedSong != null || _captureService.lastDetectionStatus != null)
+                    const SizedBox(height: 16),
+
                   // Enhanced stat pills with offline info
                   Row(
                     children: [
@@ -400,7 +442,16 @@ class _StatusPageState extends State<StatusPage> with SingleTickerProviderStateM
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      TextButton(onPressed: _scanAndUploadPendingChunks, child: const Text('Retry Pending')),
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const QueuePage()),
+                          );
+                        },
+                        icon: const Icon(Icons.list),
+                        label: Text('View Queue ($_backlogCount)'),
+                      ),
                       const SizedBox(width: 8),
                       TextButton(onPressed: _updateBacklogCount, child: const Text('Refresh')),
                     ],
@@ -742,11 +793,15 @@ class _HeroStatusCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              isRecording ? 'Recording' : (isServiceRunning ? 'Idle' : 'Stopped'),
+              _getStatusText(isRecording, isServiceRunning),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            Text("10s chunks • AAC mono 16 kHz", style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+            Text(
+              _getStatusSubtext(isRecording, isServiceRunning),
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -840,6 +895,96 @@ class _LevelMeter extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+String _getStatusText(bool isRecording, bool isServiceRunning) {
+  if (!isServiceRunning) return 'Stopped';
+  if (isRecording) return 'Recording...';
+  return 'Waiting for next capture';
+}
+
+String _getStatusSubtext(bool isRecording, bool isServiceRunning) {
+  if (!isServiceRunning) return 'Tap "Go Live" to start detecting music';
+  if (isRecording) return 'Capturing audio • 15s chunks • 44.1kHz';
+  return 'Ready to detect • Listening for music';
+}
+
+class _DetectionResultCard extends StatelessWidget {
+  final bool matched;
+  final String? songInfo;
+  final String status;
+  final int detectionsToday;
+
+  const _DetectionResultCard({
+    required this.matched,
+    this.songInfo,
+    required this.status,
+    required this.detectionsToday,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Glass(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  matched ? Icons.check_circle : Icons.info_outline,
+                  color: matched ? Colors.greenAccent : Colors.white70,
+                  size: 32,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        matched ? 'Match Found! 🎵' : 'Detection Status',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        matched ? songInfo! : status,
+                        style: TextStyle(
+                          color: matched ? Colors.greenAccent : Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (detectionsToday > 0) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$detectionsToday song${detectionsToday == 1 ? '' : 's'} detected today',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
