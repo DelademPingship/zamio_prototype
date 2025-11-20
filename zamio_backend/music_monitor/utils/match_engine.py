@@ -14,10 +14,13 @@ from artists.utils.fingerprint_tracks import simple_fingerprint
 
 
 
-def simple_match_mp3(clip_samples, clip_sr, song_fingerprints, min_match_threshold=5, plot=False):
+def simple_match_mp3(clip_samples, clip_sr, song_fingerprints, min_match_threshold=15, plot=False):
     """
     Match a full audio file against stored song fingerprints.
     Suitable for uploaded MP3 or audio clips.
+    
+    min_match_threshold: Minimum number of matching hashes required.
+    Recommended: 15-20 for reliable matches, reduces false positives.
     """
     if not clip_samples.any():
         return {"match": False, "reason": "No samples in clip", "hashes_matched": 0}
@@ -65,10 +68,13 @@ def simple_match_mp3(clip_samples, clip_sr, song_fingerprints, min_match_thresho
 
 
 
-def simple_match(stream_samples, sr, song_fingerprints, chunk_duration=5, min_match_threshold=10):
+def simple_match(stream_samples, sr, song_fingerprints, chunk_duration=5, min_match_threshold=15):
     """
     Match against a streaming audio buffer in chunks.
     Suitable for radio streams or long continuous audio.
+    
+    min_match_threshold: Minimum number of matching hashes required.
+    Recommended: 15-20 for reliable matches, reduces false positives.
     """
     chunk_size = int(chunk_duration * sr)
     total_samples = len(stream_samples)
