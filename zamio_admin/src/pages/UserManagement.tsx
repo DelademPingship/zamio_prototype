@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users,
@@ -24,8 +24,10 @@ import {
   Radio,
   Building,
   ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '@zamio/ui';
+import { fetchUserManagementOverview, fetchAllUsers, type UserRecord } from '../lib/api';
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -33,91 +35,153 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [userStats, setUserStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    pendingUsers: 0,
+    suspendedUsers: 0,
+  });
 
-  // Mock user data
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'Sarkodie',
-      email: 'sarkodie@zamio.com',
-      type: 'artist',
-      status: 'active',
-      role: 'Artist',
-      lastActivity: '2 hours ago',
-      joinDate: 'Jan 2023',
-      royaltiesEarned: 45234.8,
-      plays: 234567,
-      territory: 'Ghana',
-      phone: '+233 20 123 4567',
-      avatar: 'S',
-    },
-    {
-      id: 2,
-      name: 'Peace FM',
-      email: 'contact@peacefm.com',
-      type: 'station',
-      status: 'active',
-      role: 'Station',
-      lastActivity: '1 hour ago',
-      joinDate: 'Mar 2022',
-      royaltiesEarned: 12890.5,
-      plays: 56789,
-      territory: 'Accra, Ghana',
-      phone: '+233 30 212 3456',
-      avatar: 'P',
-    },
-    {
-      id: 3,
-      name: 'Universal Music Publishing Ghana',
-      email: 'admin@umpghana.com',
-      type: 'publisher',
-      status: 'active',
-      role: 'Publisher',
-      lastActivity: '30 mins ago',
-      joinDate: 'Dec 2022',
-      royaltiesEarned: 183204.54,
-      plays: 892345,
-      territory: 'West Africa',
-      phone: '+233 24 345 6789',
-      avatar: 'U',
-    },
-    {
-      id: 4,
-      name: 'Shatta Wale',
-      email: 'shatta@zamio.com',
-      type: 'artist',
-      status: 'pending',
-      role: 'Artist',
-      lastActivity: '5 mins ago',
-      joinDate: 'Feb 2023',
-      royaltiesEarned: 0,
-      plays: 0,
-      territory: 'Ghana',
-      phone: '+233 20 987 6543',
-      avatar: 'S',
-    },
-    {
-      id: 5,
-      name: 'Eazymusic Collective',
-      email: 'info@eazymusic.com',
-      type: 'publisher',
-      status: 'suspended',
-      role: 'Publisher',
-      lastActivity: '1 day ago',
-      joinDate: 'Nov 2022',
-      royaltiesEarned: 98234.21,
-      plays: 456789,
-      territory: 'Accra & Kumasi',
-      phone: '+233 27 456 7890',
-      avatar: 'E',
-    },
-  ]);
+  // Load user data from backend
+  useEffect(() => {
+    loadUserData();
+  }, [currentPage, filterType, filterStatus, searchTerm]);
 
-  const userStats = {
-    totalUsers: users.length,
-    activeUsers: users.filter(u => u.status === 'active').length,
-    pendingUsers: users.filter(u => u.status === 'pending').length,
-    suspendedUsers: users.filter(u => u.status === 'suspended').length,
+  useEffect(() => {
+    loadOverviewStats();
+  }, []);
+
+  const loadOverviewStats = async () => {
+    try {
+      const response = await fetchUserManagementOverview();
+      if (response.data) {
+        setUserStats({
+          totalUsers: response.data.user_stats.total_users,
+          activeUsers: response.data.account_stats.active,
+          pendingUsers: response.data.kyc_stats.pending,
+          suspendedUsers: response.data.account_stats.inactive,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+    }
+  };
+
+  const loadUserData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetchAllUsers({
+        page: currentPage,
+        per_page: 10,
+        search: searchTerm || undefined,
+        user_type: filterType !== 'all' ? filterType.charAt(0).toUpperCase() + filterType.slice(1) : undefined,
+        account_status: filterStatus !== 'all' ? filterStatus : undefined,
+        order_by: '-timestamp',
+      });
+
+      if (response.data) {
+        setUsers(response.data.users);
+        setTotalPages(response.data.pagination.total_pages);
+        setTotalCount(response.data.pagination.total_count);
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      console.error('Error details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (type: string, value: string) => {
+    if (type === 'type') {
+      setFilterType(value);
+    } else if (type === 'status') {
+      setFilterStatus(value);
+    }
+    setCurrentPage(1);
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays < 30) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  const mapUserStatus = (user: UserRecord): 'active' | 'pending' | 'suspended' => {
+    if (!user.is_active) return 'suspended';
+    if (user.kyc_status === 'pending') return 'pending';
+    return 'active';
+  };
+
+  const getDisplayName = (user: UserRecord): string => {
+    if (user.stage_name) return user.stage_name;
+    if (user.station_name) return user.station_name;
+    if (user.company_name) return user.company_name;
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    return fullName || user.email || 'Unknown User';
+  };
+
+  const getPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7; // Maximum page numbers to show
+
+    if (totalPages <= maxVisible) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage <= 3) {
+        // Near the start
+        for (let i = 2; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In the middle
+        pages.push('...');
+        pages.push(currentPage - 1);
+        pages.push(currentPage);
+        pages.push(currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
   };
 
   const getStatusColor = (status: string) => {
@@ -159,13 +223,7 @@ const UserManagement = () => {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || user.type === filterType;
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  });
+
 
   return (
     <main className="w-full px-6 py-8 min-h-screen">
@@ -271,13 +329,13 @@ const UserManagement = () => {
                     placeholder="Search users by name or email..."
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => handleSearch(e.target.value)}
                   />
                 </div>
                 <select
                   className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
+                  onChange={(e) => handleFilterChange('type', e.target.value)}
                 >
                   <option value="all">All Types</option>
                   <option value="artist">Artists</option>
@@ -287,12 +345,12 @@ const UserManagement = () => {
                 <select
                   className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
                 >
                   <option value="all">All Statuses</option>
                   <option value="active">Active</option>
                   <option value="pending">Pending</option>
-                  <option value="suspended">Suspended</option>
+                  <option value="inactive">Suspended</option>
                 </select>
               </div>
               <div className="flex items-center space-x-3">
@@ -307,73 +365,161 @@ const UserManagement = () => {
 
         {/* Users Table */}
         <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-slate-700">
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">User</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Type</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Status</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Last Activity</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center font-semibold">
-                          {user.avatar}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">{user.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        {getTypeIcon(user.type)}
-                        <span className="capitalize text-gray-700 dark:text-gray-300">{user.role}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(user.status)}`}>
-                        {getStatusIcon(user.status)}
-                        <span className="ml-1 capitalize">{user.status}</span>
-                      </span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="text-gray-700 dark:text-gray-300">{user.lastActivity}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Joined {user.joinDate}</div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => navigate(`/user-management/${user.id}`)}
-                          className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors duration-200">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No users found matching your criteria.</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading users...</span>
             </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-slate-700">
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">User</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Type</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Status</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Last Activity</th>
+                      <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => {
+                      const status = mapUserStatus(user);
+                      const displayName = getDisplayName(user);
+                      return (
+                        <tr key={user.user_id} className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
+                          <td className="py-4 px-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center font-semibold">
+                                {user.photo_url ? (
+                                  <img src={user.photo_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  getInitials(user.first_name, user.last_name)
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-900 dark:text-white">{displayName}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center space-x-2">
+                              {getTypeIcon(user.user_type?.toLowerCase() || 'user')}
+                              <span className="capitalize text-gray-700 dark:text-gray-300">{user.user_type || 'User'}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(status)}`}>
+                              {getStatusIcon(status)}
+                              <span className="ml-1 capitalize">{status}</span>
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="text-gray-700 dark:text-gray-300">{formatDate(user.last_activity)}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">Joined {formatDate(user.timestamp)}</div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => navigate(`/user-management/${user.user_id}`)}
+                                className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button 
+                                className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors duration-200"
+                                title="Edit User"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
+                                title="Deactivate User"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {users.length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No users found matching your criteria.</p>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, totalCount)} of {totalCount} users
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                      title="First page"
+                    >
+                      <ChevronDown className="w-4 h-4 rotate-90" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex items-center space-x-1">
+                      {getPageNumbers().map((pageNum, idx) => (
+                        pageNum === '...' ? (
+                          <span key={`ellipsis-${idx}`} className="px-3 py-2 text-gray-500">...</span>
+                        ) : (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(Number(pageNum))}
+                            className={`px-3 py-2 rounded-lg transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors"
+                      title="Last page"
+                    >
+                      <ChevronDown className="w-4 h-4 -rotate-90" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
       </main>

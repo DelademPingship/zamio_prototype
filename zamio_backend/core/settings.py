@@ -36,6 +36,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-secret-change-me')
 # DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 DEBUG = True
 
+# Rate limiting (disable in development to avoid issues during testing)
+RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'False').lower() == 'true'
+
 # Hosts / CSRF
 # Default to safer localhost-only in absence of env override.
 def _split_env_list(value: str) -> list[str]:

@@ -13,6 +13,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
+from accounts.api.custom_jwt import CustomJWTAuthentication
 import csv
 import json
 from datetime import datetime, timedelta
@@ -28,7 +29,7 @@ User = get_user_model()
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_user_management_overview(request):
     """Get overview statistics for user management dashboard"""
     payload = {}
@@ -112,7 +113,7 @@ def get_user_management_overview(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_all_users(request):
     """Get paginated list of all users with filtering and search"""
     payload = {}
@@ -258,7 +259,7 @@ def get_all_users(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_user_details(request):
     """Get detailed information about a specific user"""
     payload = {}
@@ -401,7 +402,7 @@ def get_user_details(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def update_kyc_status(request):
     """Update KYC status for a user with admin approval/rejection"""
     payload = {}
@@ -502,7 +503,7 @@ def update_kyc_status(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def update_user_status(request):
     """Activate, deactivate, or suspend user accounts"""
     payload = {}
@@ -613,7 +614,7 @@ def update_user_status(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def bulk_user_operations(request):
     """Perform bulk operations on multiple users"""
     payload = {}
@@ -759,6 +760,135 @@ def bulk_user_operations(request):
         
         return Response(payload, status=status.HTTP_200_OK)
         
+    except Exception as e:
+        return Response({
+            'message': 'Error',
+            'errors': {'system': [str(e)]}
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+def get_user_royalties(request):
+    """Get royalty information for a specific user"""
+    from music_monitor.models import RoyaltyDistribution
+    from django.db.models import Sum, Count, Q
+    
+    payload = {}
+    data = {}
+    
+    # Verify admin permissions
+    if not hasattr(request.user, 'mr_admin') or request.user.user_type != 'Admin':
+        return Response({
+            'message': 'Unauthorized',
+            'errors': {'permission': ['Admin access required']}
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    user_id = request.GET.get('user_id')
+    if not user_id:
+        return Response({
+            'message': 'Error',
+            'errors': {'user_id': ['User ID is required']}
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(user_id=user_id)
+        
+        # Get royalty distributions for this user
+        royalties = RoyaltyDistribution.objects.filter(recipient=user).select_related(
+            'play_log', 'play_log__track', 'play_log__station'
+        )
+        
+        # Calculate summary statistics
+        summary = royalties.aggregate(
+            total_gross=Sum('gross_amount'),
+            total_net=Sum('net_amount'),
+            total_count=Count('id'),
+            paid_count=Count('id', filter=Q(status='paid')),
+            pending_count=Count('id', filter=Q(status__in=['pending', 'calculated', 'approved'])),
+            paid_amount=Sum('net_amount', filter=Q(status='paid')),
+            pending_amount=Sum('net_amount', filter=Q(status__in=['pending', 'calculated', 'approved']))
+        )
+        
+        # Get recent royalty distributions
+        recent_royalties = royalties.order_by('-calculated_at')[:20]
+        royalties_data = []
+        
+        for royalty in recent_royalties:
+            royalty_item = {
+                'distribution_id': str(royalty.distribution_id),
+                'gross_amount': float(royalty.gross_amount),
+                'net_amount': float(royalty.net_amount),
+                'currency': royalty.currency,
+                'recipient_type': royalty.recipient_type,
+                'percentage_split': float(royalty.percentage_split),
+                'status': royalty.status,
+                'calculated_at': royalty.calculated_at.isoformat(),
+                'paid_at': royalty.paid_at.isoformat() if royalty.paid_at else None,
+                'payment_reference': royalty.payment_reference,
+            }
+            
+            # Add play log details if available
+            if royalty.play_log:
+                royalty_item['play_log'] = {
+                    'id': royalty.play_log.id,
+                    'played_at': royalty.play_log.played_at.isoformat() if royalty.play_log.played_at else None,
+                    'track_title': royalty.play_log.track.title if royalty.play_log.track else None,
+                    'station_name': royalty.play_log.station.name if royalty.play_log.station else None,
+                }
+            
+            royalties_data.append(royalty_item)
+        
+        # Get royalties by status
+        status_breakdown = {}
+        for status_choice in RoyaltyDistribution.DISTRIBUTION_STATUS:
+            status_key = status_choice[0]
+            count = royalties.filter(status=status_key).count()
+            amount = royalties.filter(status=status_key).aggregate(total=Sum('net_amount'))['total'] or 0
+            status_breakdown[status_key] = {
+                'count': count,
+                'amount': float(amount)
+            }
+        
+        data = {
+            'user_id': str(user.user_id),
+            'user_email': user.email,
+            'user_type': user.user_type,
+            'summary': {
+                'total_gross': float(summary['total_gross'] or 0),
+                'total_net': float(summary['total_net'] or 0),
+                'total_distributions': summary['total_count'] or 0,
+                'paid_count': summary['paid_count'] or 0,
+                'pending_count': summary['pending_count'] or 0,
+                'paid_amount': float(summary['paid_amount'] or 0),
+                'pending_amount': float(summary['pending_amount'] or 0),
+                'currency': 'GHS'
+            },
+            'status_breakdown': status_breakdown,
+            'recent_royalties': royalties_data
+        }
+        
+        payload['message'] = 'Successful'
+        payload['data'] = data
+        
+        # Log admin action
+        AuditLog.objects.create(
+            user=request.user,
+            action='view_user_royalties',
+            resource_type='user',
+            resource_id=str(user.user_id),
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+        
+        return Response(payload, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({
+            'message': 'Error',
+            'errors': {'user': ['User not found']}
+        }, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({
             'message': 'Error',

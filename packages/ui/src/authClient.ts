@@ -92,7 +92,19 @@ const refreshAuthToken = async (): Promise<string> => {
 authApi.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+    // Check if this is a Django Token (no dots) or JWT (has dots)
+    const isJWT = token.includes('.');
+    const authHeader = isJWT ? `Bearer ${token}` : `Token ${token}`;
+    config.headers.Authorization = authHeader;
+    
+    // Debug logging
+    console.log('[Auth Debug] Request to:', config.url);
+    console.log('[Auth Debug] Token exists:', !!token);
+    console.log('[Auth Debug] Token type:', isJWT ? 'JWT' : 'Django Token');
+    console.log('[Auth Debug] Token preview:', token ? token.substring(0, 20) + '...' : 'none');
+    console.log('[Auth Debug] Auth header:', authHeader.substring(0, 30) + '...');
+  } else {
+    console.log('[Auth Debug] No token found for request to:', config.url);
   }
   return config;
 });
