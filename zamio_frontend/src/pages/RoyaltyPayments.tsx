@@ -41,7 +41,7 @@ import {
   PiggyBank,
   Music
 } from 'lucide-react';
-import { fetchArtistPayments, type PaymentsData } from '../lib/paymentsApi';
+import { fetchArtistPayments, requestPayout, getWithdrawalHistory, type PaymentsData, type WithdrawalResponse } from '../lib/paymentsApi';
 import { getArtistId } from '../lib/auth';
 
 // Default empty payment data
@@ -78,6 +78,8 @@ const RoyaltyPayments: React.FC = () => {
     paymentMethod: 'bank_transfer',
     notes: ''
   });
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalResponse[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const formatCurrency = (amount: number | undefined) => {
     if (amount === undefined || amount === null) return '₵0.00';
@@ -121,14 +123,29 @@ const RoyaltyPayments: React.FC = () => {
     }
   }, [selectedPeriod]);
 
+  // Load withdrawal history
+  const loadWithdrawalHistory = useCallback(async () => {
+    try {
+      setLoadingHistory(true);
+      const history = await getWithdrawalHistory({ limit: 20 });
+      setWithdrawalHistory(history);
+    } catch (err) {
+      console.error('Failed to load withdrawal history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
   // Load payments on mount and when period changes
   useEffect(() => {
     loadPayments();
-  }, [loadPayments]);
+    loadWithdrawalHistory();
+  }, [loadPayments, loadWithdrawalHistory]);
 
   // Handle refresh
   const handleRefresh = () => {
     loadPayments(true);
+    loadWithdrawalHistory();
   };
 
   const formatDate = (dateString: string) => {
@@ -506,6 +523,109 @@ const RoyaltyPayments: React.FC = () => {
       </div>
       )}
 
+      {/* Withdrawal History */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Withdrawal History</h2>
+          <button
+            onClick={loadWithdrawalHistory}
+            disabled={loadingHistory}
+            className="flex items-center space-x-2 px-4 py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors duration-200"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingHistory ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {loadingHistory ? (
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin" />
+          </div>
+        ) : withdrawalHistory.length === 0 ? (
+          <div className="text-center py-12">
+            <Wallet className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">No withdrawal requests yet</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+              Click "Request Payout" to make your first withdrawal request
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {withdrawalHistory.map((withdrawal) => (
+              <div
+                key={withdrawal.withdrawal_id}
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800/60 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors duration-200"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`p-2 rounded-lg ${
+                    withdrawal.status === 'processed' ? 'bg-green-100 dark:bg-green-900/30' :
+                    withdrawal.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' :
+                    withdrawal.status === 'approved' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                    withdrawal.status === 'rejected' ? 'bg-red-100 dark:bg-red-900/30' :
+                    'bg-gray-100 dark:bg-gray-900/30'
+                  }`}>
+                    {withdrawal.status === 'processed' && <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />}
+                    {withdrawal.status === 'pending' && <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
+                    {withdrawal.status === 'approved' && <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
+                    {withdrawal.status === 'rejected' && <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />}
+                    {withdrawal.status === 'cancelled' && <XCircle className="w-5 h-5 text-gray-600 dark:text-gray-400" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(withdrawal.amount)}
+                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        withdrawal.status === 'processed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                        withdrawal.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
+                        withdrawal.status === 'approved' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                        withdrawal.status === 'rejected' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                      }`}>
+                        {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Requested: {new Date(withdrawal.requested_at).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                    {withdrawal.processed_at && (
+                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        Processed: {new Date(withdrawal.processed_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </div>
+                    )}
+                    {withdrawal.rejection_reason && (
+                      <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                        Reason: {withdrawal.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                    ID: {withdrawal.withdrawal_id.substring(0, 8)}...
+                  </div>
+                  {withdrawal.processed_by_email && (
+                    <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                      By: {withdrawal.processed_by_email}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Request Payout Modal */}
       {isPayoutModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -615,15 +735,50 @@ const RoyaltyPayments: React.FC = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    // In a real app, this would make an API call to request payout
-                    alert(`Payout request for ${formatCurrency(parseFloat(payoutFormData.amount))} submitted successfully!`);
-                    setPayoutFormData({
-                      amount: paymentData.overview.pending_payments.toString(),
-                      paymentMethod: 'bank_transfer',
-                      notes: ''
-                    });
-                    setIsPayoutModalOpen(false);
+                  onClick={async () => {
+                    try {
+                      const amount = parseFloat(payoutFormData.amount);
+                      
+                      // Validate amount
+                      if (isNaN(amount) || amount <= 0) {
+                        alert('Please enter a valid amount');
+                        return;
+                      }
+                      
+                      if (amount > paymentData.overview.pending_payments) {
+                        alert(`Amount cannot exceed available balance of ${formatCurrency(paymentData.overview.pending_payments)}`);
+                        return;
+                      }
+                      
+                      // Make API call to request payout
+                      const response = await requestPayout({
+                        amount: amount,
+                        currency: 'GHS',
+                        notes: payoutFormData.notes
+                      });
+                      
+                      // Success - show confirmation
+                      alert(`Payout request for ${formatCurrency(amount)} submitted successfully!\n\nRequest ID: ${response.withdrawal_id}\nStatus: ${response.status}\n\nYou'll receive a confirmation email once processed.`);
+                      
+                      // Reset form
+                      setPayoutFormData({
+                        amount: paymentData.overview.pending_payments.toString(),
+                        paymentMethod: 'bank_transfer',
+                        notes: ''
+                      });
+                      
+                      // Close modal
+                      setIsPayoutModalOpen(false);
+                      
+                      // Reload payments data and withdrawal history
+                      loadWithdrawalHistory();
+                      loadPayments();
+                      
+                    } catch (err: any) {
+                      console.error('Failed to request payout:', err);
+                      const errorMessage = err.response?.data?.message || err.message || 'Failed to submit payout request';
+                      alert(`Error: ${errorMessage}\n\nPlease try again or contact support if the problem persists.`);
+                    }
                   }}
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >

@@ -43,6 +43,9 @@ export default function Layout() {
       ['/agreements', 'partners'],
       ['/disputes', 'disputes'],
       ['/playlogs', 'playlogs'],
+      ['/withdrawals', 'withdrawals'],
+      ['/station-deposits', 'station-deposits'],
+      ['/station-balances', 'station-balances'],
     ];
 
     for (const [prefix, tab] of routeMappings) {

@@ -3,6 +3,7 @@ from django.urls import path, include
 from artists.views.albums_views import add_album, archive_album, delete_album, edit_album, get_album_details_view, get_all_albums_view, get_all_archived_albums_view, unarchive_album, get_edit_album_support_data_view, get_album_edit_history_view
 from artists.views.artist_analytics_view import get_artist_analytics_view
 from artists.views.artist_payments_view import get_artist_payments_view
+from artists.views.artist_royalties_view import get_artist_royalties_view
 from artists.views.artist_hompage import get_artist_homedata
 from artists.views.artist_playlog_views import get_all_track_playlog_view
 from artists.views.artist_profile_view import get_artist_profile_view as get_artist_profile_jwt, update_artist_profile_view
@@ -95,6 +96,7 @@ urlpatterns = [
     path('playlogs/', get_all_track_playlog_view, name='get_all_track_playlog_view'),
     path('analytics/', get_artist_analytics_view, name='get_artist_analytics_view'),
     path('payments/', get_artist_payments_view, name='get_artist_payments_view'),
+    path('royalties/', get_artist_royalties_view, name='get_artist_royalties_view'),
     
     # JWT-based profile endpoints
     path('profile/', get_artist_profile_jwt, name='get_artist_profile_jwt'),

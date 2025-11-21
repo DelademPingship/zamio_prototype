@@ -15,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from decimal import Decimal
 
+from accounts.api.custom_jwt import CustomJWTAuthentication
+
 from music_monitor.models import PlayLog
 from .models import (
     PartnerPRO,
@@ -841,7 +843,7 @@ def get_calculation_audit(request):
 # Royalty Withdrawal Management API Endpoints
 
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def create_withdrawal_request(request):
     """Create a new royalty withdrawal request"""
@@ -894,7 +896,7 @@ def create_withdrawal_request(request):
 
 
 @api_view(["GET"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def list_withdrawal_requests(request):
     """List royalty withdrawal requests with filtering"""
@@ -943,7 +945,7 @@ def list_withdrawal_requests(request):
 
 
 @api_view(["GET"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def get_withdrawal_request(request, withdrawal_id):
     """Get a specific withdrawal request"""
@@ -980,7 +982,7 @@ def get_withdrawal_request(request, withdrawal_id):
 
 
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def process_withdrawal_action(request, withdrawal_id):
     """Process actions on withdrawal requests (approve, reject, process, cancel)"""
@@ -1080,7 +1082,7 @@ def process_withdrawal_action(request, withdrawal_id):
 
 
 @api_view(["GET"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def get_artist_withdrawal_eligibility(request, artist_id):
     """Check artist's withdrawal eligibility based on publishing status"""
@@ -1158,7 +1160,7 @@ def get_artist_withdrawal_eligibility(request, artist_id):
 
 
 @api_view(["GET"])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def get_publisher_withdrawal_summary(request, publisher_id):
     """Get withdrawal summary for a publisher's managed artists"""
@@ -1789,3 +1791,548 @@ def verify_financial_file_integrity(request):
             'verified_at': timezone.now().isoformat()
         }
     })
+
+
+# Money Flow Integration API Endpoints
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def approve_withdrawal_with_payment(request, withdrawal_id):
+    """
+    Approve withdrawal and process actual money transfer
+    Integrates with the money flow system
+    """
+    from royalties.services import RoyaltyPaymentService
+    from accounts.models import AuditLog
+    
+    # Only staff can approve
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can approve withdrawals"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        # Use the service to approve and process payment
+        withdrawal = RoyaltyPaymentService.approve_and_process_withdrawal(
+            withdrawal_id=withdrawal_id,
+            admin_user=request.user
+        )
+        
+        # Log the action
+        AuditLog.objects.create(
+            user=request.user,
+            action='royalty_withdrawal_approved_with_payment',
+            resource_type='RoyaltyWithdrawal',
+            resource_id=str(withdrawal.withdrawal_id),
+            request_data={
+                'amount': str(withdrawal.amount),
+                'currency': withdrawal.currency,
+                'requester_type': withdrawal.requester_type,
+                'status': withdrawal.status
+            }
+        )
+        
+        # Return updated withdrawal
+        serializer = RoyaltyWithdrawalSerializer(withdrawal)
+        return Response({
+            'success': True,
+            'message': 'Withdrawal approved and payment processed successfully',
+            'withdrawal': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except ValidationError as e:
+        return Response(
+            {"detail": str(e)}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to approve withdrawal: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def reject_withdrawal_with_reason(request, withdrawal_id):
+    """
+    Reject a withdrawal request with reason
+    """
+    from royalties.services import RoyaltyPaymentService
+    from accounts.models import AuditLog
+    
+    # Only staff can reject
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can reject withdrawals"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    rejection_reason = request.data.get('rejection_reason', '')
+    if not rejection_reason:
+        return Response(
+            {"detail": "Rejection reason is required"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        # Use the service to reject
+        withdrawal = RoyaltyPaymentService.reject_withdrawal(
+            withdrawal_id=withdrawal_id,
+            admin_user=request.user,
+            rejection_reason=rejection_reason
+        )
+        
+        # Log the action
+        AuditLog.objects.create(
+            user=request.user,
+            action='royalty_withdrawal_rejected',
+            resource_type='RoyaltyWithdrawal',
+            resource_id=str(withdrawal.withdrawal_id),
+            request_data={
+                'rejection_reason': rejection_reason,
+                'status': withdrawal.status
+            }
+        )
+        
+        # Return updated withdrawal
+        serializer = RoyaltyWithdrawalSerializer(withdrawal)
+        return Response({
+            'success': True,
+            'message': 'Withdrawal rejected successfully',
+            'withdrawal': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except ValidationError as e:
+        return Response(
+            {"detail": str(e)}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to reject withdrawal: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_platform_balance(request):
+    """
+    Get central platform pool balance (admin only)
+    """
+    from bank_account.models import PlatformAccount
+    
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can view platform balance"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    central_pool = PlatformAccount.get_central_pool()
+    
+    return Response({
+        'account_id': central_pool.account_id,
+        'balance': str(central_pool.balance),
+        'currency': central_pool.currency,
+        'total_received': str(central_pool.total_received),
+        'total_paid_out': str(central_pool.total_paid_out),
+        'updated_at': central_pool.updated_at.isoformat()
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+def get_station_balance(request, station_id):
+    """
+    Get station account balance
+    Accepts either integer ID or UUID station_id
+    """
+    from bank_account.models import StationAccount
+    from stations.models import Station
+    
+    try:
+        # Try to get station by UUID first, then by integer ID
+        try:
+            station = Station.objects.get(station_id=station_id)
+        except (Station.DoesNotExist, ValueError):
+            # If UUID lookup fails, try integer ID
+            station = Station.objects.get(id=station_id)
+        
+        # Check permissions
+        if not request.user.is_staff:
+            # User must be associated with the station
+            if not hasattr(request.user, 'station_user') or not request.user.station_user.filter(id=station.id).exists():
+                return Response(
+                    {"detail": "You don't have permission to view this station's balance"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Get or create station account
+        account, created = StationAccount.objects.get_or_create(
+            station=station,
+            defaults={
+                'balance': Decimal('0.00'),
+                'currency': 'GHS'
+            }
+        )
+        
+        return Response({
+            'station_id': station.id,
+            'station_name': station.name,
+            'account_id': account.account_id,
+            'balance': str(account.balance),
+            'currency': account.currency,
+            'total_spent': str(account.total_spent),
+            'total_plays': account.total_plays,
+            'allow_negative_balance': account.allow_negative_balance,
+            'credit_limit': str(account.credit_limit),
+            'updated_at': account.updated_at.isoformat()
+        })
+        
+    except Station.DoesNotExist:
+        return Response(
+            {"detail": "Station not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+def add_station_funds(request, station_id):
+    """
+    Add funds to a station account (admin only)
+    """
+    from bank_account.models import StationAccount
+    from stations.models import Station
+    
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can add funds to station accounts"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        station = Station.objects.get(id=station_id)
+        amount = Decimal(str(request.data.get('amount', 0)))
+        description = request.data.get('description', 'Funds added by admin')
+        
+        if amount <= 0:
+            return Response(
+                {"detail": "Amount must be greater than zero"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get or create station account
+        account, created = StationAccount.objects.get_or_create(
+            station=station,
+            defaults={
+                'balance': Decimal('0.00'),
+                'currency': 'GHS'
+            }
+        )
+        
+        # Add funds
+        account.add_funds(amount, description)
+        
+        return Response({
+            'success': True,
+            'message': f'Added {amount} GHS to {station.name}',
+            'new_balance': str(account.balance)
+        })
+        
+    except Station.DoesNotExist:
+        return Response(
+            {"detail": "Station not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to add funds: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+# Station Deposit Management API Endpoints
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def station_request_deposit(request, station_id):
+    """
+    Station requests to deposit funds into their account
+    Accepts either integer ID or UUID station_id
+    """
+    from bank_account.models import StationDepositRequest
+    from stations.models import Station
+    
+    try:
+        # Try to get station by UUID first, then by integer ID
+        try:
+            station = Station.objects.get(station_id=station_id)
+        except (Station.DoesNotExist, ValueError):
+            # If UUID lookup fails, try integer ID
+            station = Station.objects.get(id=station_id)
+        
+        # Check permissions - user must be associated with the station
+        if not request.user.is_staff:
+            # Check if user is associated with this station
+            if not hasattr(request.user, 'station_user') or not request.user.station_user.filter(id=station.id).exists():
+                return Response(
+                    {"detail": "You don't have permission to deposit for this station"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Validate request data
+        amount = request.data.get('amount')
+        payment_method = request.data.get('payment_method')
+        reference = request.data.get('reference', '')
+        notes = request.data.get('notes', '')
+        
+        if not amount or not payment_method:
+            return Response(
+                {"detail": "Amount and payment method are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        amount = Decimal(str(amount))
+        if amount <= 0:
+            return Response(
+                {"detail": "Amount must be greater than zero"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create deposit request
+        deposit_request = StationDepositRequest.objects.create(
+            station=station,
+            amount=amount,
+            currency='GHS',
+            payment_method=payment_method,
+            reference=reference,
+            notes=notes,
+            status='pending'
+        )
+        
+        return Response({
+            'success': True,
+            'message': 'Deposit request submitted successfully. It will be processed once payment is verified.',
+            'deposit_id': deposit_request.id,
+            'amount': str(deposit_request.amount),
+            'status': deposit_request.status,
+            'requested_at': deposit_request.requested_at.isoformat()
+        }, status=status.HTTP_201_CREATED)
+        
+    except Station.DoesNotExist:
+        return Response(
+            {"detail": "Station not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to create deposit request: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def list_station_deposit_requests(request):
+    """
+    List deposit requests for stations
+    """
+    from bank_account.models import StationDepositRequest
+    
+    queryset = StationDepositRequest.objects.select_related('station', 'processed_by').all()
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    
+    # Filter by station (for station users)
+    if not request.user.is_staff:
+        # Get stations owned by this user
+        user_stations = request.user.station_user.all()
+        if user_stations.exists():
+            queryset = queryset.filter(station__in=user_stations)
+        else:
+            queryset = queryset.none()
+    
+    station_id = request.GET.get('station_id')
+    if station_id:
+        # Try to filter by UUID first, then by integer ID
+        from stations.models import Station
+        try:
+            station = Station.objects.get(station_id=station_id)
+            queryset = queryset.filter(station=station)
+        except (Station.DoesNotExist, ValueError):
+            # If UUID lookup fails, try integer ID
+            try:
+                queryset = queryset.filter(station_id=int(station_id))
+            except (ValueError, TypeError):
+                queryset = queryset.none()
+    
+    # Order by most recent first
+    queryset = queryset.order_by('-requested_at')
+    
+    # Limit results
+    limit = min(int(request.GET.get('limit', 50)), 100)
+    queryset = queryset[:limit]
+    
+    # Serialize
+    deposits = []
+    for deposit in queryset:
+        deposits.append({
+            'id': deposit.id,
+            'station': deposit.station.id,
+            'station_name': deposit.station.name,
+            'amount': str(deposit.amount),
+            'currency': deposit.currency,
+            'payment_method': deposit.payment_method,
+            'reference': deposit.reference,
+            'notes': deposit.notes,
+            'status': deposit.status,
+            'requested_at': deposit.requested_at.isoformat(),
+            'processed_at': deposit.processed_at.isoformat() if deposit.processed_at else None,
+            'processed_by': deposit.processed_by.id if deposit.processed_by else None,
+            'rejection_reason': deposit.rejection_reason
+        })
+    
+    return Response({
+        'deposits': deposits,
+        'count': len(deposits)
+    })
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def approve_station_deposit(request, deposit_id):
+    """
+    Approve a station deposit request (admin only)
+    """
+    from bank_account.models import StationDepositRequest
+    from accounts.models import AuditLog
+    
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can approve deposits"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        deposit = StationDepositRequest.objects.get(id=deposit_id)
+        
+        # Approve and process
+        deposit.approve_and_process(request.user)
+        
+        # Log the action
+        AuditLog.objects.create(
+            user=request.user,
+            action='station_deposit_approved',
+            resource_type='StationDepositRequest',
+            resource_id=str(deposit.id),
+            request_data={
+                'station_id': deposit.station.id,
+                'station_name': deposit.station.name,
+                'amount': str(deposit.amount),
+                'payment_method': deposit.payment_method
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'message': f'Deposit approved and {deposit.amount} {deposit.currency} added to station account',
+            'deposit_id': deposit.id,
+            'status': deposit.status
+        })
+        
+    except StationDepositRequest.DoesNotExist:
+        return Response(
+            {"detail": "Deposit request not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValidationError as e:
+        return Response(
+            {"detail": str(e)}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to approve deposit: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["POST"])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def reject_station_deposit(request, deposit_id):
+    """
+    Reject a station deposit request (admin only)
+    """
+    from bank_account.models import StationDepositRequest
+    from accounts.models import AuditLog
+    
+    if not request.user.is_staff:
+        return Response(
+            {"detail": "Only staff members can reject deposits"}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    rejection_reason = request.data.get('rejection_reason', '')
+    if not rejection_reason:
+        return Response(
+            {"detail": "Rejection reason is required"}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        deposit = StationDepositRequest.objects.get(id=deposit_id)
+        
+        # Reject
+        deposit.reject(request.user, rejection_reason)
+        
+        # Log the action
+        AuditLog.objects.create(
+            user=request.user,
+            action='station_deposit_rejected',
+            resource_type='StationDepositRequest',
+            resource_id=str(deposit.id),
+            request_data={
+                'station_id': deposit.station.id,
+                'station_name': deposit.station.name,
+                'amount': str(deposit.amount),
+                'rejection_reason': rejection_reason
+            }
+        )
+        
+        return Response({
+            'success': True,
+            'message': 'Deposit request rejected',
+            'deposit_id': deposit.id,
+            'status': deposit.status
+        })
+        
+    except StationDepositRequest.DoesNotExist:
+        return Response(
+            {"detail": "Deposit request not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValidationError as e:
+        return Response(
+            {"detail": str(e)}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {"detail": f"Failed to reject deposit: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

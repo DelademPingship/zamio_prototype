@@ -13,6 +13,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  Wallet,
 } from 'lucide-react';
 import Dashboard from '../pages/Dashboard';
 import { useAuth } from '../lib/auth';
@@ -58,8 +59,15 @@ export default function Layout() {
       name: 'Royalties',
       href: '/dashboard/royalties',
       icon: DollarSign,
-      current: location.pathname.startsWith('/dashboard/royalties'),
+      current: location.pathname === '/dashboard/royalties' || location.pathname.startsWith('/dashboard/royalties/process'),
       description: 'Earnings and payments',
+    },
+    {
+      name: 'Artist Payments',
+      href: '/dashboard/artist-payments',
+      icon: Wallet,
+      current: location.pathname.startsWith('/dashboard/artist-payments'),
+      description: 'Track payments to artists',
     },
     {
       name: 'Reports',

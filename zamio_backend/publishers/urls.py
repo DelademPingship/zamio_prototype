@@ -26,6 +26,11 @@ from publishers.views.publisher_playlog_views import get_publisher_playlogs_view
 from publishers.views.publisher_catalog_views import get_publisher_catalog_view
 from publishers.views.publisher_reports_views import get_publisher_reports_view
 from publishers.views.publisher_royalties_view import get_publisher_royalties_view
+from publishers.views.publisher_sub_distributions_view import (
+    get_publisher_sub_distributions_view,
+    approve_sub_distribution_view,
+    mark_sub_distribution_paid_view
+)
 from publishers.views.publisher_profile_views import (
     get_publisher_profile_view,
     update_publisher_account_settings_view,
@@ -56,6 +61,9 @@ api_urlpatterns = [
     path('catalog/', get_publisher_catalog_view, name='publisher-catalog'),
     path('reports/', get_publisher_reports_view, name='publisher-reports'),
     path('royalties/', get_publisher_royalties_view, name='publisher-royalties'),
+    path('sub-distributions/', get_publisher_sub_distributions_view, name='publisher-sub-distributions'),
+    path('sub-distributions/approve/', approve_sub_distribution_view, name='approve-sub-distribution'),
+    path('sub-distributions/mark-paid/', mark_sub_distribution_paid_view, name='mark-sub-distribution-paid'),
     path('artists/', get_all_managed_artists_view, name='publisher-artists'),
     path('artists/detail/', get_managed_artist_details_view, name='publisher-artist-detail'),
     path('profile/', get_publisher_profile_view, name='publisher-profile'),

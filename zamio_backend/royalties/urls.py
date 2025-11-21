@@ -9,8 +9,8 @@ urlpatterns = [
     path("partners/<int:partner_id>/", views.get_partner),
     path("partners/<int:partner_id>/agreements/", views.list_agreements),
     path("partners/<int:partner_id>/agreements/create/", views.create_agreement),
-    path("partners/<int:partner_id>/ingest-repertoire/", views.ingest_repertoire),  # path-based import
-    path("partners/<int:partner_id>/repertoire/upload/", views.ingest_repertoire_upload),  # file upload
+    path("partners/<int:partner_id>/ingest-repertoire/", views.ingest_repertoire),
+    path("partners/<int:partner_id>/repertoire/upload/", views.ingest_repertoire_upload),
 
     # Cycles
     path("cycles/", views.list_cycles),
@@ -48,9 +48,22 @@ urlpatterns = [
     
     # Royalty Withdrawal Management
     path("withdrawals/", views.list_withdrawal_requests),
-    path("withdrawals/create/", views.create_withdrawal_request),
+    path("withdrawal-request/", views.create_withdrawal_request),
     path("withdrawals/<str:withdrawal_id>/", views.get_withdrawal_request),
     path("withdrawals/<str:withdrawal_id>/action/", views.process_withdrawal_action),
     path("artists/<int:artist_id>/withdrawal-eligibility/", views.get_artist_withdrawal_eligibility),
     path("publishers/<int:publisher_id>/withdrawal-summary/", views.get_publisher_withdrawal_summary),
+    
+    # Money Flow Management (New)
+    path("withdrawals/<str:withdrawal_id>/approve-payment/", views.approve_withdrawal_with_payment),
+    path("withdrawals/<str:withdrawal_id>/reject-payment/", views.reject_withdrawal_with_reason),
+    path("platform/balance/", views.get_platform_balance),
+    path("stations/<str:station_id>/balance/", views.get_station_balance),
+    path("stations/<str:station_id>/add-funds/", views.add_station_funds),
+    
+    # Station Deposit Management (New)
+    path("stations/<str:station_id>/deposit/", views.station_request_deposit),
+    path("stations/deposit-requests/", views.list_station_deposit_requests),
+    path("stations/deposits/<int:deposit_id>/approve/", views.approve_station_deposit),
+    path("stations/deposits/<int:deposit_id>/reject/", views.reject_station_deposit),
 ]

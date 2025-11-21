@@ -42,6 +42,20 @@ class PlayLog(models.Model):
     claimed = models.BooleanField(default=False)
 
     flagged = models.BooleanField(default=False)
+    
+    # Payment tracking fields
+    payment_status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('pending', 'Pending'),
+            ('charged', 'Charged'),
+            ('failed', 'Failed')
+        ],
+        default='pending',
+        help_text='Status of station payment for this play'
+    )
+    payment_error = models.TextField(blank=True, null=True, help_text='Error message if payment failed')
+    charged_at = models.DateTimeField(null=True, blank=True, help_text='When station was charged')
  
     is_archived = models.BooleanField(default=False)
     active = models.BooleanField(default=False)
@@ -250,6 +264,7 @@ class RoyaltyDistribution(models.Model):
         ('calculated', 'Calculated'),
         ('approved', 'Approved for Payment'),
         ('paid', 'Paid'),
+        ('partially_paid', 'Partially Paid'),
         ('failed', 'Payment Failed'),
         ('disputed', 'Under Dispute'),
         ('withheld', 'Withheld'),
@@ -349,6 +364,121 @@ class RoyaltyDistribution(models.Model):
     def is_international_payment(self):
         """Check if this is an international payment"""
         return self.external_pro is not None or self.currency != 'GHS'
+
+
+class PublisherArtistSubDistribution(models.Model):
+    """
+    Tracks how publishers distribute royalties to their artists.
+    When a RoyaltyDistribution goes to a publisher, this model tracks
+    the subsequent payment from publisher to artist.
+    """
+    
+    SUB_DISTRIBUTION_STATUS = [
+        ('pending', 'Pending Distribution'),
+        ('calculated', 'Calculated'),
+        ('approved', 'Approved for Payment'),
+        ('paid', 'Paid to Artist'),
+        ('failed', 'Payment Failed'),
+        ('disputed', 'Under Dispute'),
+    ]
+    
+    # Core identification
+    sub_distribution_id = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True)
+    
+    # Link to parent distribution
+    parent_distribution = models.ForeignKey(
+        RoyaltyDistribution, 
+        on_delete=models.CASCADE, 
+        related_name='sub_distributions'
+    )
+    
+    # Publisher and Artist
+    publisher = models.ForeignKey(
+        'publishers.PublisherProfile', 
+        on_delete=models.CASCADE, 
+        related_name='artist_distributions'
+    )
+    artist = models.ForeignKey(
+        'accounts.User', 
+        on_delete=models.CASCADE, 
+        related_name='publisher_sub_distributions'
+    )
+    
+    # Financial breakdown
+    total_amount = models.DecimalField(max_digits=12, decimal_places=4, help_text="Total from parent distribution")
+    publisher_fee_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="Publisher's commission %")
+    publisher_fee_amount = models.DecimalField(max_digits=12, decimal_places=4, help_text="Publisher's commission amount")
+    artist_net_amount = models.DecimalField(max_digits=12, decimal_places=4, help_text="Amount due to artist")
+    currency = models.CharField(max_length=3, default='GHS')
+    
+    # Status tracking
+    status = models.CharField(max_length=20, choices=SUB_DISTRIBUTION_STATUS, default='pending')
+    calculated_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    paid_to_artist_at = models.DateTimeField(null=True, blank=True)
+    
+    # Payment details
+    payment_reference = models.CharField(max_length=100, null=True, blank=True)
+    payment_method = models.CharField(max_length=50, null=True, blank=True)
+    
+    # Metadata
+    agreement_reference = models.CharField(max_length=100, null=True, blank=True, help_text="Publisher-Artist agreement reference")
+    calculation_metadata = models.JSONField(default=dict, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['publisher', 'status']),
+            models.Index(fields=['artist', 'status']),
+            models.Index(fields=['parent_distribution']),
+            models.Index(fields=['status', 'calculated_at']),
+        ]
+        ordering = ['-calculated_at']
+    
+    def __str__(self):
+        return f"Sub-Distribution: {self.artist_net_amount} {self.currency} to {self.artist.email} via {self.publisher.company_name}"
+    
+    def calculate_amounts(self):
+        """Calculate publisher fee and artist net amount"""
+        self.publisher_fee_amount = self.total_amount * (self.publisher_fee_percentage / Decimal('100'))
+        self.artist_net_amount = self.total_amount - self.publisher_fee_amount
+        return self.artist_net_amount
+    
+    def approve_for_payment(self):
+        """Approve for payment to artist"""
+        self.status = 'approved'
+        self.approved_at = timezone.now()
+        self.save()
+    
+    def mark_as_paid(self, payment_reference, payment_method=None):
+        """Mark as paid to artist"""
+        self.status = 'paid'
+        self.paid_to_artist_at = timezone.now()
+        self.payment_reference = payment_reference
+        if payment_method:
+            self.payment_method = payment_method
+        self.save()
+        
+        # Update parent distribution status if all sub-distributions are paid
+        self._update_parent_status()
+    
+    def _update_parent_status(self):
+        """Update parent distribution status based on sub-distributions"""
+        parent = self.parent_distribution
+        sub_dists = parent.sub_distributions.all()
+        
+        if sub_dists.filter(status='paid').count() == sub_dists.count():
+            # All sub-distributions paid
+            parent.status = 'paid'
+            parent.paid_at = timezone.now()
+            parent.save()
+        elif sub_dists.filter(status='paid').exists():
+            # Some paid
+            parent.status = 'partially_paid'
+            parent.save()
 
 
 class SnippetIngest(models.Model):

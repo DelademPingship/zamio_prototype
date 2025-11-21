@@ -376,10 +376,33 @@ class RoyaltyCalculator:
                     errors=errors
                 )
             
+            # Validate track has active contributors
+            active_contributors = play_log.track.contributors.filter(active=True)
+            if not active_contributors.exists():
+                errors.append("Track has no active contributors - cannot calculate royalties")
+                return RoyaltyCalculationResult(
+                    play_log=play_log,
+                    total_gross_amount=Decimal('0'),
+                    distributions=[],
+                    currency='GHS',
+                    calculation_metadata=calculation_metadata,
+                    pro_shares={},
+                    errors=errors
+                )
+            
             # Validate contributor splits
             is_valid, total_splits = play_log.track.validate_contributor_splits()
             if not is_valid:
-                errors.append(f"Invalid contributor splits: total {total_splits}%")
+                errors.append(f"Invalid contributor splits: total {total_splits}% (must equal 100%)")
+                return RoyaltyCalculationResult(
+                    play_log=play_log,
+                    total_gross_amount=Decimal('0'),
+                    distributions=[],
+                    currency='GHS',
+                    calculation_metadata=calculation_metadata,
+                    pro_shares={},
+                    errors=errors
+                )
             
             # Resolve contributor splits
             contributor_splits = self.resolve_contributor_splits(play_log.track)
@@ -456,14 +479,43 @@ class RoyaltyCalculator:
         """
         Create RoyaltyDistribution records from calculation result
         """
+        from music_monitor.models import PublisherArtistSubDistribution
+        
         distributions = []
         
         for dist_result in calculation_result.distributions:
             try:
-                # Get recipient user
+                # Get recipient user based on recipient type
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
-                recipient = User.objects.get(id=dist_result.recipient_id)
+                
+                publisher_profile = None
+                artist_user = None
+                
+                # CRITICAL FIX: Route to correct recipient based on type
+                if dist_result.recipient_type == 'publisher':
+                    # Get publisher's user account, not the contributor's
+                    publisher_id = dist_result.routing_metadata.get('publisher_id')
+                    artist_id = dist_result.routing_metadata.get('artist_id')
+                    
+                    if not publisher_id:
+                        logger.error(f"Publisher type distribution missing publisher_id in metadata")
+                        continue
+                    
+                    try:
+                        publisher_profile = PublisherProfile.objects.select_related('user').get(id=publisher_id)
+                        recipient = publisher_profile.user
+                        artist_user = User.objects.get(id=artist_id) if artist_id else None
+                        logger.info(f"Routing royalty to publisher {publisher_profile.company_name} (user: {recipient.email})")
+                    except PublisherProfile.DoesNotExist:
+                        logger.error(f"Publisher {publisher_id} not found for distribution")
+                        continue
+                    except User.DoesNotExist:
+                        logger.error(f"Artist user {artist_id} not found for sub-distribution")
+                        artist_user = None
+                else:
+                    # For artists and contributors, use the contributor's user
+                    recipient = User.objects.get(id=dist_result.recipient_id)
                 
                 # Create distribution record
                 distribution = RoyaltyDistribution.objects.create(
@@ -484,8 +536,41 @@ class RoyaltyCalculator:
                 
                 distributions.append(distribution)
                 
+                # Create sub-distribution for publisher-to-artist payment tracking
+                if dist_result.recipient_type == 'publisher' and publisher_profile and artist_user:
+                    # Get publisher fee percentage (default 15% if not specified)
+                    publisher_fee_pct = publisher_profile.default_admin_fee_percent or Decimal('15.00')
+                    
+                    sub_distribution = PublisherArtistSubDistribution.objects.create(
+                        parent_distribution=distribution,
+                        publisher=publisher_profile,
+                        artist=artist_user,
+                        total_amount=dist_result.net_amount,
+                        publisher_fee_percentage=publisher_fee_pct,
+                        currency=dist_result.currency,
+                        calculation_metadata={
+                            'track_id': calculation_result.play_log.track_id,
+                            'play_log_id': calculation_result.play_log.id,
+                            'contributor_split': str(dist_result.percentage_split),
+                            'routing_method': dist_result.routing_metadata.get('routing_method')
+                        },
+                        status='calculated'
+                    )
+                    
+                    # Calculate amounts
+                    sub_distribution.calculate_amounts()
+                    sub_distribution.save()
+                    
+                    logger.info(
+                        f"Created sub-distribution: Publisher {publisher_profile.company_name} "
+                        f"keeps {sub_distribution.publisher_fee_amount} {dist_result.currency}, "
+                        f"artist {artist_user.email} gets {sub_distribution.artist_net_amount} {dist_result.currency}"
+                    )
+                
             except Exception as e:
                 logger.error(f"Error creating distribution record: {str(e)}")
+                import traceback
+                logger.error(traceback.format_exc())
                 continue
         
         return distributions

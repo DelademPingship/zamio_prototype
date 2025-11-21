@@ -25,6 +25,7 @@ import Compliance from '../pages/Compliance';
 import Notifications from '../pages/Notifications';
 import Help from '../pages/Help';
 import DisputeDetails from '../pages/MatchDisputeManagement/DisputeDetails';
+import Transactions from '../pages/Transactions';
 
 const LoadingScreen = () => (
   <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-200">
@@ -162,6 +163,7 @@ const Router = () => (
         )}
       >
         <Route index element={<Dashboard />} />
+        <Route path="transactions" element={<Transactions />} />
         <Route path="match-logs" element={<MatchLogs />} />
         <Route path="match-disputes" element={<MatchDisputes />} />
         <Route path="match-dispute-details" element={<DisputeDetails />} />

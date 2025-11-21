@@ -63,6 +63,9 @@ import Disputes from '../pages/Disputes';
 import DisputeDetail from '../pages/DisputeDetail';
 import DisputesAnalytics from '../pages/DisputesAnalytics';
 import PlayLogs from '../pages/PlayLogs';
+import WithdrawalApprovals from '../pages/WithdrawalApprovals';
+import StationBalances from '../pages/StationBalances';
+import StationDeposits from '../pages/StationDeposits';
 import NotFound from '../pages/NotFound';
 import Layout from '../components/Layout';
 
@@ -129,6 +132,9 @@ const router = createBrowserRouter([
           { path: 'disputes/analytics', element: <DisputesAnalytics /> },
           { path: 'disputes/:id', element: <DisputeDetail /> },
           { path: 'playlogs', element: <PlayLogs /> },
+          { path: 'withdrawals', element: <WithdrawalApprovals /> },
+          { path: 'station-balances', element: <StationBalances /> },
+          { path: 'station-deposits', element: <StationDeposits /> },
         ],
       },
     ],

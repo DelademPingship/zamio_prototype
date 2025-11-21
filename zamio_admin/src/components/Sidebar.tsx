@@ -113,6 +113,33 @@ const Sidebar: React.FC<SidebarProps> = ({
       link: '/playlogs',
       isRoute: true,
     },
+    {
+      name: 'Withdrawals',
+      id: 'withdrawals',
+      icon: Download,
+      current: location.pathname === '/withdrawals',
+      description: 'Approve and manage withdrawals',
+      link: '/withdrawals',
+      isRoute: true,
+    },
+    {
+      name: 'Station Deposits',
+      id: 'station-deposits',
+      icon: FileText,
+      current: location.pathname === '/station-deposits',
+      description: 'Manage station deposit requests',
+      link: '/station-deposits',
+      isRoute: true,
+    },
+    {
+      name: 'Station Balances',
+      id: 'station-balances',
+      icon: BarChart3,
+      current: location.pathname === '/station-balances',
+      description: 'View and manage station balances',
+      link: '/station-balances',
+      isRoute: true,
+    },
   ];
 
   return (

@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  DollarSign
 } from 'lucide-react';
 import Dashboard from '../pages/Dashboard';
 
@@ -37,6 +38,12 @@ export default function Layout() {
       href: '/dashboard',
       icon: Home,
       description: 'Station dashboard and overview'
+    },
+    {
+      name: 'Transactions',
+      href: '/dashboard/transactions',
+      icon: DollarSign,
+      description: 'Account balance and transactions'
     },
     {
       name: 'Match Logs',

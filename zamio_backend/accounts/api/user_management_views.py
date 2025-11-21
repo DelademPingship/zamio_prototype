@@ -772,7 +772,7 @@ def bulk_user_operations(request):
 @authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_user_royalties(request):
     """Get royalty information for a specific user"""
-    from music_monitor.models import RoyaltyDistribution
+    from music_monitor.models import RoyaltyDistribution, PublisherArtistSubDistribution
     from django.db.models import Sum, Count, Q
     
     payload = {}
@@ -795,12 +795,12 @@ def get_user_royalties(request):
     try:
         user = User.objects.get(user_id=user_id)
         
-        # Get royalty distributions for this user
+        # Get royalty distributions for this user (as direct recipient)
         royalties = RoyaltyDistribution.objects.filter(recipient=user).select_related(
             'play_log', 'play_log__track', 'play_log__station'
         )
         
-        # Calculate summary statistics
+        # Calculate summary statistics for direct distributions
         summary = royalties.aggregate(
             total_gross=Sum('gross_amount'),
             total_net=Sum('net_amount'),
@@ -809,6 +809,21 @@ def get_user_royalties(request):
             pending_count=Count('id', filter=Q(status__in=['pending', 'calculated', 'approved'])),
             paid_amount=Sum('net_amount', filter=Q(status='paid')),
             pending_amount=Sum('net_amount', filter=Q(status__in=['pending', 'calculated', 'approved']))
+        )
+        
+        # Get sub-distributions if user is an artist receiving from publishers
+        sub_distributions = PublisherArtistSubDistribution.objects.filter(artist=user).select_related(
+            'publisher', 'parent_distribution', 'parent_distribution__play_log',
+            'parent_distribution__play_log__track', 'parent_distribution__play_log__station'
+        )
+        
+        sub_dist_summary = sub_distributions.aggregate(
+            total_amount=Sum('artist_net_amount'),
+            total_count=Count('id'),
+            paid_count=Count('id', filter=Q(status='paid')),
+            pending_count=Count('id', filter=Q(status__in=['pending', 'calculated', 'approved'])),
+            paid_amount=Sum('artist_net_amount', filter=Q(status='paid')),
+            pending_amount=Sum('artist_net_amount', filter=Q(status__in=['pending', 'calculated', 'approved']))
         )
         
         # Get recent royalty distributions
@@ -851,22 +866,30 @@ def get_user_royalties(request):
                 'amount': float(amount)
             }
         
+        # Combine direct and sub-distribution totals
+        combined_total_net = float(summary['total_net'] or 0) + float(sub_dist_summary['total_amount'] or 0)
+        combined_paid = float(summary['paid_amount'] or 0) + float(sub_dist_summary['paid_amount'] or 0)
+        combined_pending = float(summary['pending_amount'] or 0) + float(sub_dist_summary['pending_amount'] or 0)
+        
         data = {
             'user_id': str(user.user_id),
             'user_email': user.email,
             'user_type': user.user_type,
             'summary': {
                 'total_gross': float(summary['total_gross'] or 0),
-                'total_net': float(summary['total_net'] or 0),
-                'total_distributions': summary['total_count'] or 0,
-                'paid_count': summary['paid_count'] or 0,
-                'pending_count': summary['pending_count'] or 0,
-                'paid_amount': float(summary['paid_amount'] or 0),
-                'pending_amount': float(summary['pending_amount'] or 0),
-                'currency': 'GHS'
+                'total_net': combined_total_net,
+                'total_distributions': (summary['total_count'] or 0) + (sub_dist_summary['total_count'] or 0),
+                'paid_count': (summary['paid_count'] or 0) + (sub_dist_summary['paid_count'] or 0),
+                'pending_count': (summary['pending_count'] or 0) + (sub_dist_summary['pending_count'] or 0),
+                'paid_amount': combined_paid,
+                'pending_amount': combined_pending,
+                'currency': 'GHS',
+                'direct_distributions': summary['total_count'] or 0,
+                'publisher_distributions': sub_dist_summary['total_count'] or 0,
             },
             'status_breakdown': status_breakdown,
-            'recent_royalties': royalties_data
+            'recent_royalties': royalties_data,
+            'has_publisher_distributions': sub_dist_summary['total_count'] > 0
         }
         
         payload['message'] = 'Successful'

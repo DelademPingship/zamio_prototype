@@ -67,6 +67,8 @@ import {
   PlayLogs,
   PaymentProcessing
 } from '../pages/PublisherPages';
+import ArtistPayments from '../pages/ArtistPayments';
+import RequestPayout from '../pages/RequestPayout';
 
 const router = createBrowserRouter([
   {
@@ -136,6 +138,14 @@ const router = createBrowserRouter([
       {
         path: 'royalties/process-payments',
         element: <PaymentProcessing />
+      },
+      {
+        path: 'artist-payments',
+        element: <ArtistPayments />
+      },
+      {
+        path: 'request-payout',
+        element: <RequestPayout />
       },
       {
         path: 'reports',

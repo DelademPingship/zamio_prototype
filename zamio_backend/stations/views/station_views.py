@@ -4,6 +4,7 @@ from rest_framework import status
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db.models import Q
 from rest_framework.authentication import TokenAuthentication
+from accounts.api.custom_jwt import CustomJWTAuthentication
 
 from stations.serializers import AllStationSerializer, StationDetailsSerializer
 
@@ -60,7 +61,7 @@ def add_station(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_all_stations_view(request):
     payload = {}
     data = {}
