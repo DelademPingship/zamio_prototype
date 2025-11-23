@@ -255,30 +255,114 @@ const Analytics: React.FC = () => {
               </div>
             </div>
 
-            <div className="h-80 flex items-center justify-center bg-gray-50/50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600">
-              <div className="text-center">
-                <BarChart3 className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">
-                  {selectedMetric === 'plays' ? 'Monthly Plays Trend Chart' : selectedMetric === 'revenue' ? 'Monthly Revenue Trend Chart' : 'Monthly Listeners Trend Chart'}
-                </p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                  Interactive chart showing {selectedMetric} trends over time
-                </p>
-              </div>
+            <div className="h-80 overflow-y-auto">
+              {analyticsData.monthly_performance.length > 0 ? (
+                <div className="space-y-3">
+                  {analyticsData.monthly_performance.map((month, index) => {
+                    const maxValue = Math.max(...analyticsData.monthly_performance.map(m => 
+                      selectedMetric === 'plays' ? m.plays : 
+                      selectedMetric === 'revenue' ? m.revenue : 
+                      m.listeners
+                    ));
+                    const value = selectedMetric === 'plays' ? month.plays : 
+                                  selectedMetric === 'revenue' ? month.revenue : 
+                                  month.listeners;
+                    const percentage = (value / maxValue) * 100;
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-3">
+                        <div className="w-12 text-sm font-medium text-gray-600 dark:text-gray-400">
+                          {month.month}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 dark:bg-slate-700 rounded-full h-8 relative">
+                              <div
+                                className={`h-8 rounded-full transition-all duration-500 ${
+                                  selectedMetric === 'plays' ? 'bg-gradient-to-r from-indigo-500 to-blue-500' :
+                                  selectedMetric === 'revenue' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                                  'bg-gradient-to-r from-purple-500 to-pink-500'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white w-20 text-right">
+                              {selectedMetric === 'revenue' ? formatCurrency(value) : formatNumber(value)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <BarChart3 className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">No data available</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Geographic Performance Chart */}
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-slate-700/30 shadow-2xl">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Geographic Performance Distribution</h2>
-            <div className="h-80 flex items-center justify-center bg-gray-50/50 dark:bg-slate-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-slate-600">
-              <div className="text-center">
-                <PieChart className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">Regional Performance Chart</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                  Interactive pie chart showing plays by region
-                </p>
-              </div>
+            <div className="h-80 overflow-y-auto">
+              {analyticsData.geographic_performance.length > 0 ? (
+                <div className="space-y-4">
+                  {analyticsData.geographic_performance.map((region, index) => {
+                    const colors = [
+                      'from-blue-500 to-indigo-500',
+                      'from-green-500 to-emerald-500',
+                      'from-purple-500 to-pink-500',
+                      'from-orange-500 to-red-500',
+                      'from-yellow-500 to-orange-500',
+                      'from-cyan-500 to-blue-500',
+                    ];
+                    const colorClass = colors[index % colors.length];
+                    
+                    return (
+                      <div key={region.region} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {region.region}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-gray-900 dark:text-white">
+                              {formatNumber(region.plays)} plays
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {region.percentage}% of total
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3">
+                          <div
+                            className={`bg-gradient-to-r ${colorClass} h-3 rounded-full transition-all duration-500`}
+                            style={{ width: `${region.percentage}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                          <span>{formatCurrency(region.revenue)} revenue</span>
+                          <span>{formatNumber(region.listeners)} listeners</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <div className="text-center">
+                    <PieChart className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">No regional data available</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -287,7 +371,12 @@ const Analytics: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Revenue Sources Breakdown */}
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-slate-700/30 shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Revenue Sources Analysis</h2>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Revenue Sources</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Currently tracking radio airplay only</p>
+              </div>
+            </div>
             <div className="space-y-4">
               {analyticsData.revenue_by_source.map((source) => (
                 <div key={source.source} className="space-y-3">
@@ -541,9 +630,9 @@ const Analytics: React.FC = () => {
                   <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     {formatCurrency(analyticsData.overview.total_revenue)}
                   </p>
-                  <div className={`flex items-center space-x-1 text-xs ${getGrowthColor(8.3)}`}>
-                    {getGrowthIcon(8.3)}
-                    <span>8.3% growth</span>
+                  <div className={`flex items-center space-x-1 text-xs ${getGrowthColor(analyticsData.overview.growth_rate)}`}>
+                    {getGrowthIcon(analyticsData.overview.growth_rate)}
+                    <span>{Math.abs(analyticsData.overview.growth_rate)}% growth</span>
                   </div>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/60 dark:to-green-900/60 rounded-lg flex items-center justify-center">
@@ -559,9 +648,9 @@ const Analytics: React.FC = () => {
                   <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     {formatNumber(analyticsData.overview.active_listeners)}
                   </p>
-                  <div className={`flex items-center space-x-1 text-xs ${getGrowthColor(5.7)}`}>
-                    {getGrowthIcon(5.7)}
-                    <span>5.7% growth</span>
+                  <div className={`flex items-center space-x-1 text-xs ${getGrowthColor(analyticsData.overview.growth_rate)}`}>
+                    {getGrowthIcon(analyticsData.overview.growth_rate)}
+                    <span>{Math.abs(analyticsData.overview.growth_rate)}% growth</span>
                   </div>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/60 dark:to-pink-900/60 rounded-lg flex items-center justify-center">
@@ -577,9 +666,8 @@ const Analytics: React.FC = () => {
                   <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     {analyticsData.overview.total_tracks}
                   </p>
-                  <div className={`flex items-center space-x-1 text-xs ${getGrowthColor(2.1)}`}>
-                    {getGrowthIcon(2.1)}
-                    <span>2.1% growth</span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {analyticsData.overview.total_albums} albums
                   </div>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/60 dark:to-orange-900/60 rounded-lg flex items-center justify-center">

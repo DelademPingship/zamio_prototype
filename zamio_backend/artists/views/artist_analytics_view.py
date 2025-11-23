@@ -191,27 +191,14 @@ def get_artist_analytics_view(request):
         })
     
     # === REVENUE BY SOURCE ===
-    # Assume 80% radio, 16% streaming, 4% public performance
+    # Currently only radio plays are tracked via PlayLog
+    # Other sources are estimated based on industry standards
     revenue_by_source = [
         {
-            'source': 'Radio Stations',
-            'amount': round(total_revenue * 0.80, 2),
-            'percentage': 80.0,
-            'plays': int(total_plays * 0.80),
-            'avg_per_play': 0.015
-        },
-        {
-            'source': 'Streaming',
-            'amount': round(total_revenue * 0.16, 2),
-            'percentage': 16.0,
-            'plays': int(total_plays * 0.16),
-            'avg_per_play': 0.015
-        },
-        {
-            'source': 'Public Performance',
-            'amount': round(total_revenue * 0.04, 2),
-            'percentage': 4.0,
-            'plays': int(total_plays * 0.04),
+            'source': 'Radio Airplay (Tracked)',
+            'amount': round(total_revenue, 2),  # All tracked revenue is from radio
+            'percentage': 100.0,
+            'plays': total_plays,
             'avg_per_play': 0.015
         }
     ]

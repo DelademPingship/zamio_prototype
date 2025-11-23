@@ -75,6 +75,27 @@ def get_artist_profile_view(request):
             'shazam_url': '',  # Not implemented yet
         }
 
+        # Publisher information
+        publisher_info = {
+            'is_self_published': artist.is_self_published,
+            'publisher': None
+        }
+        
+        if not artist.is_self_published and artist.publisher:
+            publisher_info['publisher'] = {
+                'publisher_id': artist.publisher.publisher_id,
+                'company_name': artist.publisher.company_name or '',
+                'company_type': artist.publisher.company_type or '',
+                'description': artist.publisher.description or '',
+                'website_url': artist.publisher.website_url or '',
+                'primary_contact_name': artist.publisher.primary_contact_name or '',
+                'primary_contact_email': artist.publisher.primary_contact_email or '',
+                'primary_contact_phone': artist.publisher.primary_contact_phone or '',
+                'region': artist.publisher.region or '',
+                'city': artist.publisher.city or '',
+                'country': artist.publisher.country or '',
+            }
+
         # Get all tracks for this artist (as owner or contributor)
         if artist.user:
             tracks = Track.objects.filter(
@@ -215,6 +236,7 @@ def get_artist_profile_view(request):
         # Build response
         data['profile'] = profile
         data['contact'] = contact
+        data['publisher'] = publisher_info
         data['stats'] = stats
         data['top_tracks'] = top_tracks_data
         data['recent_activity'] = recent_activity

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useLocation, Outlet, NavLink } from 'react-router-dom';
 import Header from './Header';
 import {
@@ -23,11 +23,30 @@ import {
   DollarSign
 } from 'lucide-react';
 import Dashboard from '../pages/Dashboard';
+import { useAuth } from '../lib/auth';
 
 export default function Layout() {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
+
+  // Get station name and initials
+  const stationName = useMemo(() => {
+    if (user && typeof user === 'object' && user !== null) {
+      return user['station_name'] || 'Station';
+    }
+    return 'Station';
+  }, [user]);
+
+  const stationInitials = useMemo(() => {
+    return stationName
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [stationName]);
 
   // Check if current page is dashboard
   const isDashboard = location.pathname === '/dashboard';
@@ -184,15 +203,15 @@ export default function Layout() {
           <div className="p-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
             <div className={`flex items-center space-x-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <span className="text-white text-sm font-semibold">ST</span>
+                <span className="text-white text-sm font-semibold">{stationInitials}</span>
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                    Demo Station
+                    {stationName}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    Premium Station
+                    Radio Station
                   </p>
                 </div>
               )}

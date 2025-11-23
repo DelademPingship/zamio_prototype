@@ -2,58 +2,17 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, Building2, CheckCircle, X, FileText, Users, Award } from 'lucide-react';
 import { OnboardingStepProps } from '../../../components/onboarding/OnboardingWizard';
 import { useArtistOnboarding } from './ArtistOnboardingContext';
+import { fetchPublishersList, type PublisherListItem } from '../../../lib/api';
 
 interface Publisher {
   id: string;
   name: string;
-  type: 'Major' | 'Independent' | 'Digital';
+  type: string;
   location: string;
   specialties: string[];
+  description?: string;
   verified?: boolean;
 }
-
-const demoPublishers: Publisher[] = [
-  {
-    id: 'sony-music',
-    name: 'Sony Music Entertainment',
-    type: 'Major',
-    location: 'New York, USA',
-    specialties: ['Pop', 'Hip-Hop', 'R&B', 'International'],
-    verified: true,
-  },
-  {
-    id: 'universal-music',
-    name: 'Universal Music Group',
-    type: 'Major',
-    location: 'Santa Monica, USA',
-    specialties: ['All Genres', 'Global Distribution'],
-    verified: true,
-  },
-  {
-    id: 'empawa-africa',
-    name: 'Empawa Africa',
-    type: 'Independent',
-    location: 'Lagos, Nigeria',
-    specialties: ['Afrobeats', 'African Music', 'Digital Distribution'],
-    verified: true,
-  },
-  {
-    id: 'boomplay-music',
-    name: 'Boomplay Music',
-    type: 'Digital',
-    location: 'Lagos, Nigeria',
-    specialties: ['Streaming', 'African Content', 'Digital Rights'],
-    verified: true,
-  },
-  {
-    id: 'ghana-music-alliance',
-    name: 'Ghana Music Alliance',
-    type: 'Independent',
-    location: 'Accra, Ghana',
-    specialties: ['Ghanaian Music', 'Local Distribution', 'Cultural Preservation'],
-    verified: true,
-  },
-];
 
 const PublisherStep: React.FC<OnboardingStepProps> = ({ registerNextHandler, registerSkipHandler }) => {
   const { status, submitPublisher } = useArtistOnboarding();
@@ -65,7 +24,37 @@ const PublisherStep: React.FC<OnboardingStepProps> = ({ registerNextHandler, reg
   const [selfPublish, setSelfPublish] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [loadingPublishers, setLoadingPublishers] = useState(true);
 
+  // Fetch publishers from API
+  useEffect(() => {
+    const loadPublishers = async () => {
+      try {
+        setLoadingPublishers(true);
+        const response = await fetchPublishersList();
+        if (response?.data && Array.isArray(response.data)) {
+          setPublishers(response.data.map((p: PublisherListItem) => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            location: p.location,
+            specialties: p.specialties || [],
+            description: p.description,
+            verified: true,
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch publishers:', error);
+        // Keep empty array on error
+      } finally {
+        setLoadingPublishers(false);
+      }
+    };
+    loadPublishers();
+  }, []);
+
+  // Load saved publisher data
   useEffect(() => {
     const publisherSnapshot = (status?.publisher ?? {}) as Record<string, unknown>;
     if (!publisherSnapshot) {
@@ -79,7 +68,7 @@ const PublisherStep: React.FC<OnboardingStepProps> = ({ registerNextHandler, reg
     const storedPublisher = {
       id: readString(publisherSnapshot['publisher_id']) ?? '',
       name: readString(publisherSnapshot['publisher_name']) ?? '',
-      type: readString(preferences['publisher_type']) as Publisher['type'] | undefined,
+      type: readString(preferences['publisher_type']),
       location: readString(preferences['publisher_location']) ?? '',
       specialties: Array.isArray(preferences['publisher_specialties'])
         ? (preferences['publisher_specialties'] as string[])
@@ -106,12 +95,12 @@ const PublisherStep: React.FC<OnboardingStepProps> = ({ registerNextHandler, reg
 
   const filteredPublishers = useMemo(
     () =>
-      demoPublishers.filter(
+      publishers.filter(
         (publisher) =>
           publisher.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           publisher.specialties.some((specialty) => specialty.toLowerCase().includes(searchQuery.toLowerCase())),
       ),
-    [searchQuery],
+    [publishers, searchQuery],
   );
 
   const handlePublisherSelect = (publisher: Publisher) => {

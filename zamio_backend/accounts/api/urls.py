@@ -17,7 +17,7 @@ from accounts.api.artist_views import (
     set_self_published_status_view, update_identity_profile_view, upload_kyc_documents_view, get_kyc_documents_view,
     delete_kyc_document_view, download_kyc_document_view, get_secure_download_url_view,
     secure_download_view, skip_verification_view, resume_verification_view, verification_status_view,
-    send_verification_reminder_view, verification_requirements_view
+    send_verification_reminder_view, verification_requirements_view, get_publishers_list_view
 )
 from accounts.api.fan_views import FanLogin, register_fan_view
 from accounts.api.publisher_view import (
@@ -139,6 +139,9 @@ urlpatterns = [
     path('verification-status/', verification_status_view, name="verification_status_view"),
     path('send-verification-reminder/', send_verification_reminder_view, name="send_verification_reminder_view"),
     path('verification-requirements/', verification_requirements_view, name="verification_requirements_view"),
+    
+    # Publisher Selection for Artists
+    path('publishers/list/', get_publishers_list_view, name="get_publishers_list"),
 
    # 
 

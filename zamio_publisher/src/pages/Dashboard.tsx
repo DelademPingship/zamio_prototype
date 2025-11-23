@@ -212,54 +212,17 @@ export default function Dashboard() {
     return definitions.map((definition) => {
       const metrics = statsSource[definition.key] ?? {};
       const numericValue = typeof metrics?.value === 'number' ? metrics.value : 0;
-      let fallbackTarget = 0;
-      if (definition.key === 'totalEarnings') {
-        fallbackTarget = numericValue ? Math.max(Math.ceil(numericValue * 1.3), numericValue + 100) : 250;
-      } else if (definition.key === 'worksInCatalog') {
-        fallbackTarget = numericValue ? numericValue + 10 : 15;
-      } else if (definition.key === 'activeStations') {
-        fallbackTarget = numericValue ? numericValue + 3 : 5;
-      } else {
-        fallbackTarget = numericValue ? Math.max(numericValue + 25, Math.ceil(numericValue * 1.25)) : 50;
-      }
-      const targetValue = typeof metrics?.target === 'number' ? metrics.target : fallbackTarget;
       const changeValue = typeof metrics?.change === 'number' ? metrics.change : 0;
-      const targetLabel = metrics?.targetLabel ?? `${periodTitle} Target`;
-      const progress = targetValue ? Math.min((numericValue / targetValue) * 100, 100) : 0;
       const formattedValue =
         definition.key === 'totalEarnings'
           ? `₵${formatNumber(numericValue, { maximumFractionDigits: 2 })}`
           : formatNumber(numericValue);
-      const targetDisplay = `${formatNumber(numericValue, {
-        maximumFractionDigits: definition.key === 'totalEarnings' ? 2 : 0,
-      })} / ${formatNumber(targetValue, { maximumFractionDigits: definition.key === 'totalEarnings' ? 2 : 0 })}`;
       const changeText = `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(1)}% ${periodDescriptor}`;
-
-      let status: string | undefined;
-      let statusColor: string | undefined;
-      if (definition.key === 'worksInCatalog') {
-        const completion = targetValue ? numericValue / targetValue : 0;
-        if (completion >= 0.75) {
-          status = 'Excellent';
-          statusColor = 'text-emerald-600 dark:text-emerald-400';
-        } else if (completion >= 0.5) {
-          status = 'On Track';
-          statusColor = 'text-blue-600 dark:text-blue-400';
-        } else {
-          status = 'Growing';
-          statusColor = 'text-yellow-600 dark:text-yellow-400';
-        }
-      }
 
       return {
         ...definition,
         formattedValue,
         changeText,
-        progress,
-        targetLabel,
-        targetDisplay,
-        status,
-        statusColor,
       };
     });
   }, [dashboardData, formatNumber, periodDescriptor, periodTitle]);
@@ -385,46 +348,7 @@ export default function Dashboard() {
     });
   }, [dashboardData, formatNumber]);
 
-  const performanceScore = useMemo<PublisherDashboardPerformanceScore>(
-    () => ({
-      overall: dashboardData?.performanceScore?.overall ?? 0,
-      publishingGrowth: dashboardData?.performanceScore?.publishingGrowth ?? 0,
-      revenueGrowth: dashboardData?.performanceScore?.revenueGrowth ?? 0,
-      catalogQuality: dashboardData?.performanceScore?.catalogQuality ?? 0,
-    }),
-    [dashboardData],
-  );
 
-  const performanceScoreDetails = useMemo(
-    () => [
-      { label: 'Publishing Growth', score: performanceScore.publishingGrowth ?? 0, color: 'bg-emerald-400' },
-      { label: 'Revenue Growth', score: performanceScore.revenueGrowth ?? 0, color: 'bg-blue-400' },
-      { label: 'Catalog Quality', score: performanceScore.catalogQuality ?? 0, color: 'bg-purple-400' },
-    ],
-    [performanceScore],
-  );
-
-  const performanceScoreSummary = useMemo(() => {
-    const overallScore = performanceScore.overall ?? 0;
-    let label = 'Developing Performance';
-    let badgeColor = 'text-emerald-700 dark:text-emerald-300';
-    if (overallScore >= 8.5) {
-      label = 'Excellent Performance';
-      badgeColor = 'text-emerald-700 dark:text-emerald-300';
-    } else if (overallScore >= 6.5) {
-      label = 'Strong Performance';
-      badgeColor = 'text-blue-700 dark:text-blue-300';
-    } else if (overallScore >= 4.5) {
-      label = 'Needs Attention';
-      badgeColor = 'text-yellow-700 dark:text-yellow-300';
-    }
-
-    return {
-      overallScore: overallScore.toFixed(1),
-      label,
-      badgeColor,
-    };
-  }, [performanceScore]);
 
   const quickActions = useMemo(
     () => {
@@ -506,30 +430,8 @@ export default function Dashboard() {
                 <stat.icon className={`w-6 h-6 ${stat.color} dark:${stat.color.replace('600', '400')}`} />
               </div>
             </div>
-            <div className={`mt-4 flex items-center justify-between text-sm ${stat.color} dark:${stat.color.replace('600', '400')}`}>
+            <div className={`mt-4 flex items-center text-sm ${stat.color} dark:${stat.color.replace('600', '400')}`}>
               <span>{stat.changeText}</span>
-              {stat.status && (
-                <div className={`px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 ${stat.statusColor ?? ''}`}>
-                  {stat.status}
-                </div>
-              )}
-            </div>
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">{stat.targetLabel}</span>
-                <span className="text-gray-600 dark:text-gray-300 font-medium">{stat.targetDisplay}</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-500 ${
-                    index === 0 ? 'bg-purple-500 dark:bg-purple-400' :
-                    index === 1 ? 'bg-green-500 dark:bg-green-400' :
-                    index === 2 ? 'bg-blue-500 dark:bg-blue-400' :
-                    'bg-orange-500 dark:bg-orange-400'
-                  }`}
-                  style={{ width: `${Math.min(stat.progress, 100)}%` }}
-                />
-              </div>
             </div>
           </div>
         ))}
@@ -802,40 +704,6 @@ export default function Dashboard() {
               ) : (
                 <div className="text-sm text-gray-500 dark:text-gray-400">No artist performance data yet.</div>
               )}
-            </div>
-          </div>
-
-          {/* Performance Score - Match zamio_frontend */}
-          <div className="bg-gradient-to-br from-violet-50/90 via-purple-50/80 to-indigo-50/90 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-violet-200/50 dark:border-slate-600/60 p-6 hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center">
-                <Award className="w-5 h-5 mr-2 text-violet-500 dark:text-violet-400" />
-                Performance Score
-              </h2>
-            </div>
-            <div className="text-center mb-6">
-              <div className="text-3xl sm:text-4xl font-bold mb-2 text-emerald-600 dark:text-emerald-400">
-                {performanceScoreSummary.overallScore}
-              </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium mx-auto w-fit bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 ${performanceScoreSummary.badgeColor}`}>
-                {performanceScoreSummary.label}
-              </div>
-            </div>
-            <div className="space-y-3">
-              {performanceScoreDetails.map((detail) => (
-                <div key={detail.label} className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">{detail.label}</span>
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-sm font-semibold ${detail.color.replace('bg-', 'text-')}`}>{detail.score.toFixed(1)}</span>
-                    <div className="w-20 h-1 bg-gray-200 dark:bg-slate-600 rounded-full">
-                      <div
-                        className={`h-full rounded-full ${detail.color}`}
-                        style={{ width: `${Math.min((detail.score / 10) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
 

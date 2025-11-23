@@ -143,38 +143,7 @@ def get_station_dashboard_data(request):
         compliance_score = (sum(1 for check in compliance_checks if check) / len(compliance_checks)) * 10
         stats["complianceScore"] = round(compliance_score, 1)
 
-    detection_target = max(int(total_plays * 1.25) if total_plays else 0, total_plays + 10 if total_plays else 50)
-    earnings_target = float(total_royalties) * 1.2 if total_royalties else 250.0
-    targets = {
-        "detectionTarget": detection_target,
-        "earningsTarget": round(earnings_target, 2),
-        "stationsTarget": max(active_regions + 2, 5) if active_regions else 5,
-        "accuracyTarget": 95,
-        "uptimeTarget": 99,
-        "revenueTarget": round(float(total_royalties) * 1.25 if total_royalties else 300.0, 2),
-    }
 
-    # Performance score calculations (0-10 scale)
-    thirty_days_ago = now - timedelta(days=30)
-    sixty_days_ago = now - timedelta(days=60)
-    recent_plays = PlayLog.objects.filter(station=station, played_at__gte=thirty_days_ago).count()
-    previous_plays = PlayLog.objects.filter(station=station, played_at__range=(sixty_days_ago, thirty_days_ago)).count()
-    growth_rate = 0.0
-    if previous_plays:
-        growth_rate = ((recent_plays - previous_plays) / previous_plays) * 100
-    elif recent_plays:
-        growth_rate = 100.0
-
-    def clamp_score(value: float) -> float:
-        return round(max(min(value, 10.0), 0.0), 1)
-
-    performance_score = {
-        "overall": clamp_score(((stats["monitoringAccuracy"] / 10) + (uptime / 10)) / 2),
-        "detectionGrowth": clamp_score((growth_rate / 20) + 5),
-        "regionalReach": clamp_score(active_regions),
-        "systemHealth": clamp_score(uptime / 10),
-        "compliance": clamp_score(stats["complianceScore"]),
-    }
 
     # Recent detections
     recent_logs = playlogs.order_by('-played_at')[:5]
@@ -417,8 +386,6 @@ def get_station_dashboard_data(request):
         "activeRegions": active_regions,
         "totalRoyalties": round(float(total_royalties), 2),
         "stats": stats,
-        "targets": targets,
-        "performanceScore": performance_score,
         "recentDetections": recent_detections,
         "systemHealth": system_health,
         "staffPerformance": staff_performance,

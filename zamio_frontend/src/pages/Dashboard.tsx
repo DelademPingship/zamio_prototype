@@ -491,7 +491,7 @@ const Dashboard = () => {
           </div>
         )}
         {/* Stats Cards */}
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 ${viewTransitionStyles}`}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 ${viewTransitionStyles}`}>
             <div className="bg-gradient-to-br from-red-50/90 via-orange-50/80 to-pink-50/90 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-red-200/50 dark:border-slate-600/60 p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:border-red-300 dark:hover:border-red-700/70 group cursor-pointer">
               <div className="flex items-center justify-between">
                 <div>
@@ -511,20 +511,6 @@ const Dashboard = () => {
               <span className={growthTextClass}>{formattedGrowthRate}</span>
               <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
             </div>
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Monthly Target</span>
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  {statsData.totalPlays.toLocaleString()} / {targets.airplayTarget.toLocaleString()}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((statsData.totalPlays / targets.airplayTarget) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
           </div>
 
           <div className="bg-gradient-to-br from-emerald-50/90 via-green-50/80 to-teal-50/90 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-emerald-200/50 dark:border-slate-600/60 p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:border-emerald-300 dark:hover:border-emerald-700/70 group cursor-pointer">
@@ -540,25 +526,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="mt-4 flex items-center text-sm">
-              <div className="flex items-center mr-2">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-              </div>
-              <span className="text-green-600 dark:text-green-400">+18.2%</span>
-              <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
-            </div>
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Monthly Target</span>
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  ₵{statsData.totalEarnings.toLocaleString()} / ₵{targets.earningsTarget.toLocaleString()}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min((statsData.totalEarnings / targets.earningsTarget) * 100, 100)}%` }}
-                />
-              </div>
+              <span className="text-gray-500 dark:text-gray-400">Lifetime royalties earned</span>
             </div>
           </div>
 
@@ -574,81 +542,8 @@ const Dashboard = () => {
                 <Globe className="w-6 h-6 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Across Ghana</span>
-              <div className="flex items-center">
-                <div className="w-8 h-1 bg-gray-200 dark:bg-slate-600 rounded-full mr-2">
-                  <div className="w-full h-full bg-orange-400 rounded-full" style={{ width: `${Math.min((statsData.totalStations / targets.stationsTarget) * 100, 100)}%` }}></div>
-                </div>
-                <span className="text-orange-600 dark:text-orange-400 text-xs font-medium">
-                  {Math.round((statsData.totalStations / targets.stationsTarget) * 100)}%
-                </span>
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Monthly Target</span>
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  {statsData.totalStations} / {targets.stationsTarget}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-orange-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((statsData.totalStations / targets.stationsTarget) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50/90 via-violet-50/80 to-indigo-50/90 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-purple-200/50 dark:border-slate-600/60 p-6 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:border-purple-300 dark:hover:border-purple-700/70 group cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm font-normal text-gray-700 dark:text-slate-300 leading-relaxed">Avg. Confidence</p>
-                <p className={`text-2xl sm:text-3xl font-bold leading-tight group-hover:scale-105 transition-transform duration-300 ${
-                  statsData.avgConfidence >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
-                  statsData.avgConfidence >= 80 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {statsData.avgConfidence}%
-                </p>
-              </div>
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform duration-300 ${
-                statsData.avgConfidence >= 90 ? 'bg-emerald-100/80 dark:bg-emerald-900/60' :
-                statsData.avgConfidence >= 80 ? 'bg-blue-100/80 dark:bg-blue-900/60' :
-                'bg-red-100/80 dark:bg-red-900/60'
-              }`}>
-                <Target className={`w-6 h-6 ${
-                  statsData.avgConfidence >= 90 ? 'text-emerald-600 dark:text-emerald-400' :
-                  statsData.avgConfidence >= 80 ? 'text-blue-600 dark:text-blue-400' :
-                  'text-red-600 dark:text-red-400'
-                }`} />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Track recognition rate</span>
-              <div className="flex items-center">
-                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  getStatusColor(statsData.avgConfidence).bg
-                } ${getStatusColor(statsData.avgConfidence).border} ${getStatusColor(statsData.avgConfidence).text}`}>
-                  {statsData.avgConfidence >= 90 ? 'Excellent' :
-                   statsData.avgConfidence >= 80 ? 'Good' :
-                   statsData.avgConfidence >= 70 ? 'Average' : 'Needs Work'}
-                </div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Target</span>
-                <span className="text-gray-600 dark:text-gray-300 font-medium">
-                  {statsData.avgConfidence}% / {targets.confidenceTarget}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                <div
-                  className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((statsData.avgConfidence / targets.confidenceTarget) * 100, 100)}%` }}
-                />
-              </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Broadcasting your music</span>
             </div>
           </div>
         </div>
@@ -842,63 +737,33 @@ const Dashboard = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-700 dark:text-gray-300 font-light leading-relaxed">Plays</span>
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className="font-medium text-gray-900 dark:text-white cursor-pointer"
-                            onMouseEnter={(e) => showTooltip(`${region.plays.toLocaleString()} total plays in ${region.region}`, e)}
-                            onMouseLeave={hideTooltip}
-                          >
-                            {region.plays.toLocaleString()}
-                          </span>
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            region.plays > 10000 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' :
-                            region.plays > 5000 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' :
-                            region.plays > 1000 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' :
-                            'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                          }`}>
-                            {region.plays > 10000 ? 'High' : region.plays > 5000 ? 'Medium' : region.plays > 1000 ? 'Low' : 'Very Low'}
-                          </div>
-                        </div>
+                        <span
+                          className="font-medium text-gray-900 dark:text-white cursor-pointer"
+                          onMouseEnter={(e) => showTooltip(`${region.plays.toLocaleString()} total plays in ${region.region}`, e)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          {region.plays.toLocaleString()}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-700 dark:text-gray-300 font-light leading-relaxed">Earnings</span>
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className="font-medium text-green-600 dark:text-green-400 cursor-pointer"
-                            onMouseEnter={(e) => showTooltip(`₵${region.earnings.toFixed(2)} earned from ${region.plays.toLocaleString()} plays`, e)}
-                            onMouseLeave={hideTooltip}
-                          >
-                            ₵{region.earnings.toFixed(2)}
-                          </span>
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            region.earnings > 5000 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' :
-                            region.earnings > 2000 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' :
-                            region.earnings > 500 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' :
-                            'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                          }`}>
-                            {region.earnings > 5000 ? 'High' : region.earnings > 2000 ? 'Medium' : region.earnings > 500 ? 'Low' : 'Very Low'}
-                          </div>
-                        </div>
+                        <span
+                          className="font-medium text-green-600 dark:text-green-400 cursor-pointer"
+                          onMouseEnter={(e) => showTooltip(`₵${region.earnings.toFixed(2)} earned from ${region.plays.toLocaleString()} plays`, e)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          ₵{region.earnings.toFixed(2)}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-700 dark:text-gray-300 font-light leading-relaxed">Stations</span>
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className="font-medium text-orange-600 dark:text-orange-400 cursor-pointer"
-                            onMouseEnter={(e) => showTooltip(`${region.stations} active stations in ${region.region}`, e)}
-                            onMouseLeave={hideTooltip}
-                          >
-                            {region.stations}
-                          </span>
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            region.stations > 15 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' :
-                            region.stations > 10 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300' :
-                            region.stations > 5 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300' :
-                            'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-                          }`}>
-                            {region.stations > 15 ? 'Excellent' : region.stations > 10 ? 'Good' : region.stations > 5 ? 'Fair' : 'Limited'}
-                          </div>
-                        </div>
+                        <span
+                          className="font-medium text-orange-600 dark:text-orange-400 cursor-pointer"
+                          onMouseEnter={(e) => showTooltip(`${region.stations} active stations in ${region.region}`, e)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          {region.stations}
+                        </span>
                       </div>
                     </div>
                     <div className="mt-3 w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2 relative group">
@@ -950,100 +815,6 @@ const Dashboard = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Performance Score */}
-            <div className="bg-gradient-to-br from-violet-50/90 via-purple-50/80 to-indigo-50/90 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-sm rounded-xl shadow-lg border border-violet-200/50 dark:border-slate-600/60 p-6 hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-100 flex items-center">
-                  <Award className="w-5 h-5 mr-2 text-violet-500" />
-                  Performance Score
-                </h2>
-              </div>
-              <div className="text-center mb-6">
-                <div className={`text-3xl sm:text-4xl font-bold mb-2 ${
-                  performanceScore.overall >= 8 ? 'text-emerald-600 dark:text-emerald-400' :
-                  performanceScore.overall >= 6 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {performanceScore.overall}
-                </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-medium mx-auto w-fit ${
-                  getStatusColor(performanceScore.overall * 10).bg
-                } ${getStatusColor(performanceScore.overall * 10).border} ${getStatusColor(performanceScore.overall * 10).text}`}>
-                  {performanceScore.overall >= 8 ? 'Excellent Performance' :
-                   performanceScore.overall >= 6 ? 'Good Performance' :
-                   performanceScore.overall >= 5 ? 'Average Performance' : 'Needs Improvement'}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Airplay Growth</span>
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-sm font-semibold ${getStatusColor(performanceScore.airplayGrowth * 10).accent}`}>
-                      {performanceScore.airplayGrowth}
-                    </span>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      getStatusColor(performanceScore.airplayGrowth * 10).bg
-                    } ${getStatusColor(performanceScore.airplayGrowth * 10).border} ${getStatusColor(performanceScore.airplayGrowth * 10).text}`}>
-                      {performanceScore.airplayGrowth >= 8 ? 'Excellent' :
-                       performanceScore.airplayGrowth >= 6 ? 'Good' :
-                       performanceScore.airplayGrowth >= 5 ? 'Average' : 'Poor'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Regional Reach</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-gray-200 dark:bg-slate-600 rounded-full h-2 relative group">
-                      <div
-                        className={`h-2 rounded-full cursor-pointer transition-all duration-300 ${
-                          performanceScore.regionalReach >= 8 ? 'bg-green-500' :
-                          performanceScore.regionalReach >= 6 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${performanceScore.regionalReach * 10}%` }}
-                        onMouseEnter={(e) => showTooltip(`${performanceScore.regionalReach}/10 - ${performanceScore.regionalReach >= 8 ? 'Excellent' : performanceScore.regionalReach >= 6 ? 'Good' : 'Needs Improvement'} regional coverage`, e)}
-                        onMouseLeave={hideTooltip}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {performanceScore.regionalReach}
-                    </span>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      getStatusColor(performanceScore.regionalReach * 10).bg
-                    } ${getStatusColor(performanceScore.regionalReach * 10).border} ${getStatusColor(performanceScore.regionalReach * 10).text}`}>
-                      {performanceScore.regionalReach >= 8 ? 'Excellent' :
-                       performanceScore.regionalReach >= 6 ? 'Good' :
-                       performanceScore.regionalReach >= 5 ? 'Average' : 'Poor'}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Track Quality</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-gray-200 dark:bg-slate-600 rounded-full h-2 relative group">
-                      <div
-                        className={`h-2 rounded-full cursor-pointer transition-all duration-300 ${
-                          performanceScore.trackQuality >= 8 ? 'bg-green-500' :
-                          performanceScore.trackQuality >= 6 ? 'bg-blue-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${performanceScore.trackQuality * 10}%` }}
-                        onMouseEnter={(e) => showTooltip(`${performanceScore.trackQuality}/10 - ${performanceScore.trackQuality >= 8 ? 'Excellent' : performanceScore.trackQuality >= 6 ? 'Good' : 'Needs Improvement'} track recognition`, e)}
-                        onMouseLeave={hideTooltip}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {performanceScore.trackQuality}
-                    </span>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      getStatusColor(performanceScore.trackQuality * 10).bg
-                    } ${getStatusColor(performanceScore.trackQuality * 10).border} ${getStatusColor(performanceScore.trackQuality * 10).text}`}>
-                      {performanceScore.trackQuality >= 8 ? 'Excellent' :
-                       performanceScore.trackQuality >= 6 ? 'Good' :
-                       performanceScore.trackQuality >= 5 ? 'Average' : 'Poor'}
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
 

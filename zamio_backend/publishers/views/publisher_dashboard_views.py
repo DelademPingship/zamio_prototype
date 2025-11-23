@@ -409,26 +409,18 @@ def get_publisher_dashboard_view(request):
         'totalPerformances': {
             'value': total_performances,
             'change': _calculate_growth(total_performances, previous_performances),
-            'target': max(total_performances + 25, int(total_performances * 1.25) if total_performances else 50),
-            'targetLabel': 'Performance Target',
         },
         'totalEarnings': {
             'value': float(total_earnings),
             'change': _calculate_growth(total_earnings, previous_earnings),
-            'target': round(float(total_earnings) * 1.3 + 100, 2) if total_earnings else 250.0,
-            'targetLabel': 'Revenue Target',
         },
         'worksInCatalog': {
             'value': works_in_catalog,
             'change': _calculate_growth(works_in_catalog, agreements_qs.count()),
-            'target': works_in_catalog + 10 if works_in_catalog else 15,
-            'targetLabel': 'Catalog Goal',
         },
         'activeStations': {
             'value': active_stations,
             'change': _calculate_growth(active_stations, previous_station_count),
-            'target': max(active_stations + 3, 5),
-            'targetLabel': 'Station Coverage',
         },
     }
 
@@ -608,23 +600,6 @@ def get_publisher_dashboard_view(request):
             'trend': _calculate_growth(plays, previous_artist_totals.get(artist_id, 0)),
         })
 
-    publishing_growth_score = _clamp_score((_calculate_growth(total_performances, previous_performances) / 10) + 5)
-    revenue_growth_score = _clamp_score((_calculate_growth(total_earnings, previous_earnings) / 10) + 5)
-    catalog_quality_score = _clamp_score(min(works_in_catalog / 10 if works_in_catalog else 0, 10))
-    performance_score = {
-        'overall': _clamp_score((publishing_growth_score + revenue_growth_score + catalog_quality_score) / 3),
-        'publishingGrowth': publishing_growth_score,
-        'revenueGrowth': revenue_growth_score,
-        'catalogQuality': catalog_quality_score,
-    }
-
-    targets = {
-        'performancesTarget': stats['totalPerformances']['target'],
-        'earningsTarget': stats['totalEarnings']['target'],
-        'catalogTarget': stats['worksInCatalog']['target'],
-        'stationTarget': stats['activeStations']['target'],
-    }
-
     data['stats'] = stats
     data['playsOverTime'] = plays_over_time_data
     data['topSongs'] = top_songs_data
@@ -633,8 +608,6 @@ def get_publisher_dashboard_view(request):
     data['recentActivity'] = recent_activity
     data['roster'] = roster
     data['topArtists'] = top_artists_data
-    data['performanceScore'] = performance_score
-    data['targets'] = targets
     data['metadata'] = {
         'period': period,
         'startDate': start_date.isoformat() if start_date else None,

@@ -275,7 +275,7 @@ def get_artist_royalties_view(request):
         'payment_methods': payment_methods,
         'has_publisher': artist.publisher is not None,
         'publisher_name': artist.publisher.company_name if artist.publisher else None,
-        'publisher_fee': float(artist.publisher.default_admin_fee_percent) if artist.publisher else None
+        'publisher_fee': float(artist.publisher.administrative_fee_percentage) if artist.publisher and artist.publisher.administrative_fee_percentage else None
     }
 
     payload['message'] = 'Successful'

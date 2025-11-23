@@ -318,38 +318,6 @@ def get_artist_homedata(request):
     else:
         growth_rate = 100.0 if totalPlays else 0.0
 
-    if prev_plays:
-        growth_ratio = totalPlays / prev_plays if prev_plays else 1
-    else:
-        growth_ratio = 2 if totalPlays else 1
-
-    airplay_growth_score = round(min(max(growth_ratio * 5, 0), 10), 1)
-    TOTAL_GHANA_REGIONS = 16
-    regional_reach_score = round(min((active_regions / TOTAL_GHANA_REGIONS) * 10, 10), 1) if active_regions else 0
-    avg_plays_per_station = totalPlays / totalStations if totalStations else 0
-    fan_engagement_score = round(min(avg_plays_per_station / 10, 10), 1) if avg_plays_per_station else 0
-    track_quality_score = round(min(confidence_score / 10, 10), 1) if confidence_score else 0
-    overall_score = round(
-        min(
-            (
-                airplay_growth_score +
-                regional_reach_score +
-                fan_engagement_score +
-                track_quality_score
-            ) / 4,
-            10
-        ),
-        1
-    )
-
-    performanceScore = {
-        "overall": overall_score,
-        "airplayGrowth": airplay_growth_score,
-        "regionalReach": regional_reach_score,
-        "fanEngagement": fan_engagement_score,
-        "trackQuality": track_quality_score
-    }
-
     stats_summary = {
         "totalPlays": totalPlays,
         "totalStations": totalStations,
@@ -357,13 +325,6 @@ def get_artist_homedata(request):
         "avgConfidence": round(confidence_score, 1),
         "growthRate": growth_rate,
         "activeTracks": active_tracks,
-    }
-
-    targets = {
-        "airplayTarget": totalPlays + max(5, int(totalPlays * 0.15)) if totalPlays else 10,
-        "earningsTarget": round(totalEarnings * 1.2 + 50, 2) if totalEarnings else 100.0,
-        "stationsTarget": totalStations + max(1, int(totalStations * 0.1)) if totalStations else 3,
-        "confidenceTarget": min(100.0, round(confidence_score + 5.0, 1)),
     }
 
     data.update({
@@ -379,8 +340,6 @@ def get_artist_homedata(request):
         "ghanaRegions": ghanaRegions,
         "stationBreakdown": stationBreakdown,
         "fanDemographics": fanDemographics,
-        "performanceScore": performanceScore,
-        "targets": targets
     })
 
     return Response({"message": "Successful", "data": data}, status=status.HTTP_200_OK)

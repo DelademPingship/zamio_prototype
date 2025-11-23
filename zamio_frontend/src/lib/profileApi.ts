@@ -29,6 +29,25 @@ export interface ContactInfo {
   shazam_url: string;
 }
 
+export interface PublisherInfo {
+  publisher_id: string;
+  company_name: string;
+  company_type: string;
+  description: string;
+  website_url: string;
+  primary_contact_name: string;
+  primary_contact_email: string;
+  primary_contact_phone: string;
+  region: string;
+  city: string;
+  country: string;
+}
+
+export interface PublisherData {
+  is_self_published: boolean;
+  publisher: PublisherInfo | null;
+}
+
 export interface ProfileStats {
   total_plays: number;
   total_earnings: number;
@@ -71,6 +90,7 @@ export interface Achievement {
 export interface ProfileData {
   profile: ArtistProfile;
   contact: ContactInfo;
+  publisher: PublisherData;
   stats: ProfileStats;
   top_tracks: TopTrack[];
   recent_activity: RecentActivity[];

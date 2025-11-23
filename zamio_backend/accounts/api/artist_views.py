@@ -2108,6 +2108,31 @@ def complete_artist_publisher_view(request):
                 preferences['publisher_name'] = preferences.get('publisher_name') or getattr(publisher, 'company_name', None)
                 preferences['publisher_type'] = preferences.get('publisher_type') or getattr(publisher, 'publisher_type', None)
                 preferences['publisher_location'] = preferences.get('publisher_location') or getattr(publisher, 'country', None)
+                
+                # Send notification to publisher about new artist
+                try:
+                    from notifications.models import Notification
+                    Notification.objects.create(
+                        user=publisher.user,
+                        type='Update',
+                        title='New Artist Joined',
+                        message=f'{artist.stage_name} has selected you as their publisher and would like to work with you.',
+                        priority='high',
+                        action_required=True,
+                        action_label='View Artist Profile',
+                        action_type='view_artist',
+                        metadata={
+                            'artist_id': artist.artist_id,
+                            'artist_name': artist.stage_name,
+                            'timestamp': timezone.now().isoformat(),
+                            'notification_type': 'artist_joined'
+                        }
+                    )
+                    logger.info(f"Notification sent to publisher {publisher.publisher_id} for artist {artist.artist_id}")
+                except Exception as notif_error:
+                    # Log error but don't fail the request
+                    logger.error(f"Failed to send notification to publisher: {str(notif_error)}")
+                    
             except PublisherProfile.DoesNotExist:
                 errors['publisher_id'] = ['Publisher not found.']
 
@@ -2833,4 +2858,77 @@ def secure_download_view(request, document_id):
             'message': 'Failed to download file',
             'errors': {'general': [str(e)]}
         }
+        return Response(payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
+def get_publishers_list_view(request):
+    """
+    Get list of active publishers for artist selection during onboarding.
+    
+    Returns publishers that are:
+    - Active (active=True)
+    - Have completed their profile
+    - Optionally accepting new artists
+    """
+    payload = {}
+    
+    try:
+        # Fetch active publishers with completed profiles
+        publishers = PublisherProfile.objects.filter(
+            active=True,
+            profile_completed=True
+        ).select_related('user').order_by('company_name')
+        
+        # Build publisher list for frontend
+        data = []
+        for p in publishers:
+            publisher_data = {
+                'id': p.publisher_id,
+                'name': p.company_name or 'Unknown Publisher',
+                'type': p.publisher_type or 'Independent',
+                'description': p.description or '',
+                'specialties': [],
+            }
+            
+            # Build location string
+            location_parts = []
+            if p.city:
+                location_parts.append(p.city)
+            if p.region:
+                location_parts.append(p.region)
+            if p.country:
+                location_parts.append(p.country)
+            publisher_data['location'] = ', '.join(location_parts) if location_parts else 'Not specified'
+            
+            # Parse specialties if stored as JSON or comma-separated
+            if p.specialties:
+                if isinstance(p.specialties, list):
+                    publisher_data['specialties'] = p.specialties
+                elif isinstance(p.specialties, str):
+                    # Try to parse as JSON first, then fall back to comma-separated
+                    try:
+                        import json
+                        publisher_data['specialties'] = json.loads(p.specialties)
+                    except (json.JSONDecodeError, TypeError):
+                        publisher_data['specialties'] = [s.strip() for s in p.specialties.split(',') if s.strip()]
+            
+            # Add default specialty if none provided
+            if not publisher_data['specialties']:
+                publisher_data['specialties'] = [publisher_data['type']]
+            
+            data.append(publisher_data)
+        
+        payload['message'] = 'Successful'
+        payload['data'] = data
+        payload['count'] = len(data)
+        
+        return Response(payload, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Error fetching publishers list: {str(e)}")
+        payload['message'] = 'Failed to fetch publishers'
+        payload['errors'] = {'general': [str(e)]}
         return Response(payload, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

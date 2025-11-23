@@ -135,34 +135,7 @@ export default function Dashboard() {
     [dashboardData],
   );
 
-  const monthlyTargets = useMemo(
-    () => ({
-      detectionTarget:
-        dashboardData?.targets?.detectionTarget ??
-        (stationStats.tracksDetected ? Math.ceil(stationStats.tracksDetected * 1.2) : 10),
-      earningsTarget:
-        dashboardData?.targets?.earningsTarget ??
-        (stationStats.revenueEarned ? Math.ceil(stationStats.revenueEarned * 1.2) : 100),
-      stationsTarget: dashboardData?.targets?.stationsTarget ?? (dashboardData?.activeRegions ?? 5),
-      accuracyTarget: dashboardData?.targets?.accuracyTarget ?? 95,
-      uptimeTarget: dashboardData?.targets?.uptimeTarget ?? 99,
-      revenueTarget:
-        dashboardData?.targets?.revenueTarget ??
-        (stationStats.revenueEarned ? Math.ceil(stationStats.revenueEarned * 1.3) : 150),
-    }),
-    [dashboardData, stationStats],
-  );
 
-  const performanceScore = useMemo(
-    () => ({
-      overall: dashboardData?.performanceScore?.overall ?? 0,
-      detectionGrowth: dashboardData?.performanceScore?.detectionGrowth ?? 0,
-      regionalReach: dashboardData?.performanceScore?.regionalReach ?? 0,
-      systemHealth: dashboardData?.performanceScore?.systemHealth ?? 0,
-      compliance: dashboardData?.performanceScore?.compliance ?? 0,
-    }),
-    [dashboardData],
-  );
 
   const recentDetections = useMemo<StationDashboardDetectionRecord[]>(
     () =>
@@ -170,15 +143,6 @@ export default function Dashboard() {
         ...detection,
         confidence: detection.confidence ?? 0,
         status: detection.status ?? 'pending',
-      })),
-    [dashboardData],
-  );
-
-  const systemHealth = useMemo<StationDashboardSystemMetric[]>(
-    () =>
-      (dashboardData?.systemHealth ?? []).map((metric) => ({
-        ...metric,
-        status: metric.status ?? 'average',
       })),
     [dashboardData],
   );
@@ -359,25 +323,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
-            <div className="flex items-center mr-2">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            </div>
-            <span className="text-green-600 dark:text-green-400">+12.3%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500 dark:text-gray-400">Monthly Target</span>
-              <span className="text-gray-600 dark:text-gray-300 font-medium">
-                {stationStats.tracksDetected.toLocaleString()} / {monthlyTargets.detectionTarget.toLocaleString()}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-red-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((stationStats.tracksDetected / monthlyTargets.detectionTarget) * 100, 100)}%` }}
-              />
-            </div>
+            <span className="text-gray-500 dark:text-gray-400">Tracks identified this period</span>
           </div>
         </Card>
 
@@ -401,27 +347,8 @@ export default function Dashboard() {
               <span className="text-2xl">🎯</span>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Recognition accuracy</span>
-            <div className="flex items-center">
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${stationStats.monitoringAccuracy >= 90 ? statusColors.excellent.bg : stationStats.monitoringAccuracy >= 80 ? statusColors.good.bg : statusColors.average.bg} ${stationStats.monitoringAccuracy >= 90 ? statusColors.excellent.border : stationStats.monitoringAccuracy >= 80 ? statusColors.good.border : statusColors.average.border} ${stationStats.monitoringAccuracy >= 90 ? statusColors.excellent.text : stationStats.monitoringAccuracy >= 80 ? statusColors.good.text : statusColors.average.text}`}>
-                {stationStats.monitoringAccuracy >= 90 ? 'Excellent' : stationStats.monitoringAccuracy >= 80 ? 'Good' : 'Average'}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500 dark:text-gray-400">Target</span>
-              <span className="text-gray-600 dark:text-gray-300 font-medium">
-                {stationStats.monitoringAccuracy}% / {monthlyTargets.accuracyTarget}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((stationStats.monitoringAccuracy / monthlyTargets.accuracyTarget) * 100, 100)}%` }}
-              />
-            </div>
+          <div className="mt-4 flex items-center text-sm">
+            <span className="text-gray-500 dark:text-gray-400">Music recognition accuracy</span>
           </div>
         </Card>
 
@@ -438,31 +365,8 @@ export default function Dashboard() {
               <span className="text-2xl">⚡</span>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Last 30 days</span>
-            <div className="flex items-center">
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                stationStats.uptime >= 99 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800' :
-                stationStats.uptime >= 95 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' :
-                'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
-              }`}>
-                {stationStats.uptime >= 99 ? 'Excellent' : stationStats.uptime >= 95 ? 'Good' : 'Needs Attention'}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500 dark:text-gray-400">Target</span>
-              <span className="text-gray-600 dark:text-gray-300 font-medium">
-                {stationStats.uptime}% / {monthlyTargets.uptimeTarget}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((stationStats.uptime / monthlyTargets.uptimeTarget) * 100, 100)}%` }}
-              />
-            </div>
+          <div className="mt-4 flex items-center text-sm">
+            <span className="text-gray-500 dark:text-gray-400">System availability</span>
           </div>
         </Card>
 
@@ -480,25 +384,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
-            <div className="flex items-center mr-2">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            </div>
-            <span className="text-green-600 dark:text-green-400">+8.7%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
-          </div>
-          <div className="mt-3">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-gray-500 dark:text-gray-400">Monthly Target</span>
-              <span className="text-gray-600 dark:text-gray-300 font-medium">
-                ₵{stationStats.revenueEarned.toLocaleString()} / ₵{monthlyTargets.revenueTarget.toLocaleString()}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-              <div
-                className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((stationStats.revenueEarned / monthlyTargets.revenueTarget) * 100, 100)}%` }}
-              />
-            </div>
+            <span className="text-gray-500 dark:text-gray-400">Total revenue this period</span>
           </div>
         </Card>
       </div>
@@ -536,6 +422,12 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))
+              ) : recentDetections.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No detections yet</p>
+                  <p className="text-sm mt-1">Start broadcasting to see music detections</p>
+                </div>
               ) : (
                 recentDetections.map((detection) => (
                   <div
@@ -625,6 +517,12 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))
+              ) : monthlyTrends.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No trend data available</p>
+                  <p className="text-sm mt-1">Data will appear as you broadcast</p>
+                </div>
               ) : (
                 monthlyTrends.map((month, index) => (
                   <div key={month.month} className="space-y-3 group">
@@ -681,7 +579,31 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="space-y-4">
-              {topTracks.slice(0, 3).map((track, index) => (
+              {isInitialLoading ? (
+                // Loading skeleton
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50/80 dark:bg-slate-700/60 rounded-xl border border-gray-200/60 dark:border-slate-600/40 animate-pulse">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-10 h-10 bg-gray-400 rounded-full"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-400 rounded w-32"></div>
+                        <div className="h-3 bg-gray-400 rounded w-24"></div>
+                      </div>
+                    </div>
+                    <div className="space-x-4 flex">
+                      <div className="h-4 bg-gray-400 rounded w-16"></div>
+                      <div className="h-4 bg-gray-400 rounded w-16"></div>
+                    </div>
+                  </div>
+                ))
+              ) : topTracks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No tracks detected yet</p>
+                  <p className="text-sm mt-1">Top tracks will appear here</p>
+                </div>
+              ) : (
+                topTracks.slice(0, 3).map((track, index) => (
                 <div key={track.id} className="flex items-center justify-between p-4 bg-gray-50/80 dark:bg-slate-700/60 rounded-xl border border-gray-200/60 dark:border-slate-600/40 hover:bg-gradient-to-r hover:from-purple-50/50 hover:to-pink-50/50 dark:hover:from-slate-600/50 dark:hover:to-slate-700/50 hover:scale-[1.02] hover:shadow-md transition-all duration-300 cursor-pointer group min-h-[60px]">
                   <div className="flex items-center space-x-4">
                     <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold group-hover:scale-110 transition-transform duration-300 shadow-md">
@@ -734,7 +656,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </Card>
         </div>
@@ -753,7 +676,29 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="space-y-4">
-              {staffPerformance.map((staff) => (
+              {isInitialLoading ? (
+                // Loading skeleton
+                Array.from({ length: 2 }).map((_, index) => (
+                  <div key={index} className="p-4 bg-gray-50/80 dark:bg-slate-700/60 rounded-xl border border-gray-200/60 dark:border-slate-600/40 animate-pulse">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="h-4 bg-gray-400 rounded w-24"></div>
+                      <div className="h-6 bg-gray-400 rounded-full w-16"></div>
+                    </div>
+                    <div className="h-3 bg-gray-400 rounded w-32 mb-3"></div>
+                    <div className="flex items-center justify-between">
+                      <div className="h-3 bg-gray-400 rounded w-16"></div>
+                      <div className="h-3 bg-gray-400 rounded w-12"></div>
+                    </div>
+                  </div>
+                ))
+              ) : staffPerformance.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Award className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No staff data available</p>
+                  <p className="text-sm mt-1">Add staff members to track performance</p>
+                </div>
+              ) : (
+                staffPerformance.map((staff) => (
                 <div
                   key={staff.name}
                   className="p-4 bg-gray-50/80 dark:bg-slate-700/60 rounded-xl border border-gray-200/60 dark:border-slate-600/40 hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/50 dark:hover:from-slate-600/50 dark:hover:to-slate-700/50 hover:scale-[1.02] hover:shadow-md transition-all duration-300 cursor-pointer group min-h-[60px]"
@@ -778,7 +723,8 @@ export default function Dashboard() {
                     <span className="text-sm font-medium text-green-600 dark:text-green-400">{staff.accuracy}%</span>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </Card>
 

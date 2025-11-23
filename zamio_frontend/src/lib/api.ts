@@ -147,6 +147,23 @@ export const completeArtistOnboarding = async (payload: Record<string, unknown>)
   return data;
 };
 
+export interface PublisherListItem {
+  id: string;
+  name: string;
+  type: string;
+  location: string;
+  specialties: string[];
+  description?: string;
+}
+
+export const fetchPublishersList = async () => {
+  const { data } = await authApi.get<ApiEnvelope<PublisherListItem[]>>(
+    '/api/accounts/publishers/list/',
+  );
+  return data;
+};
+
+
 export const skipArtistOnboardingStep = async (payload: Record<string, unknown>) => {
   const { data } = await authApi.post<ApiEnvelope<ArtistOnboardingStatus>>(
     '/api/accounts/skip-artist-onboarding/',
@@ -836,7 +853,7 @@ interface LegacyTrackDetailResponse {
   playLogs?: LegacyTrackPlayLog[] | null;
   playsOverTime?: LegacyTrackPlaysOverTimeEntry[] | null;
   contributors?: { role?: string | null; name?: string | null; percentage?: number | null }[] | null;
-  
+
   // Nested structure (current)
   track?: {
     id?: number | string | null;
@@ -1050,10 +1067,10 @@ const normalizeTrackDetail = (
   const inferredMonthlyRevenue = monthlyRevenueEntries.length
     ? monthlyRevenueEntries
     : playsOverTimeEntries.map<TrackRevenueMonthlyEntry>((entry) => ({
-        month: entry.label,
-        amount: entry.revenue ?? 0,
-        currency: 'GHS',
-      }));
+      month: entry.label,
+      amount: entry.revenue ?? 0,
+      currency: 'GHS',
+    }));
 
   const topStations = ensureArray(raw.performance?.top_stations ?? raw.topStations).map<TrackPerformanceTopStationEntry>(
     (station) => ({
@@ -1068,20 +1085,20 @@ const normalizeTrackDetail = (
 
   const territoryBreakdown = ensureArray(raw.revenue?.territories).length
     ? ensureArray(raw.revenue?.territories).map<TrackRevenueTerritoryEntry>((entry) => ({
-        territory: entry.territory ?? 'Territory',
-        amount: entry.amount != null ? Number(entry.amount) || 0 : 0,
-        currency: entry.currency ?? 'GHS',
-        percentage: entry.percentage ?? 0,
-      }))
+      territory: entry.territory ?? 'Territory',
+      amount: entry.amount != null ? Number(entry.amount) || 0 : 0,
+      currency: entry.currency ?? 'GHS',
+      percentage: entry.percentage ?? 0,
+    }))
     : topStations.map<TrackRevenueTerritoryEntry>((station) => ({
-        territory: station.region ?? station.country ?? station.name,
-        amount: 0,
-        currency: 'GHS',
-        percentage:
-          totalStationPlays > 0 && station.count
-            ? Number(((station.count / totalStationPlays) * 100).toFixed(2))
-            : 0,
-      }));
+      territory: station.region ?? station.country ?? station.name,
+      amount: 0,
+      currency: 'GHS',
+      percentage:
+        totalStationPlays > 0 && station.count
+          ? Number(((station.count / totalStationPlays) * 100).toFixed(2))
+          : 0,
+    }));
 
   const payoutHistoryEntries = ensureArray(raw.revenue?.payout_history).map<TrackRevenuePayoutEntry>((entry) => ({
     date: entry.date ?? new Date().toISOString().slice(0, 10),
@@ -1128,7 +1145,7 @@ const normalizeTrackDetail = (
   const coverArtUrl = raw.track?.cover_art_url ?? raw.cover_art ?? null;
   const audioFileUrl = raw.track?.audio_file_url ?? raw.audio_file_url ?? raw.audio_file_mp3 ?? null;
   const lyrics = raw.track?.lyrics ?? raw.lyrics ?? null;
-  
+
   // Use stats from nested structure or calculate from flat structure
   const statsTotalRevenue = raw.stats?.total_revenue ?? raw.total_revenue ?? totalRevenue;
   const finalTotalRevenue = typeof statsTotalRevenue === 'number' ? statsTotalRevenue : 0;
@@ -1186,15 +1203,15 @@ export const fetchArtistTrackDetail = async (
   const normalizedIdentifier =
     typeof trackIdentifier === 'string'
       ? (() => {
-          const trimmed = trackIdentifier.trim();
-          if (!trimmed) {
-            return '';
-          }
-          if (invalidTokens.has(trimmed.toLowerCase())) {
-            return '';
-          }
-          return trimmed;
-        })()
+        const trimmed = trackIdentifier.trim();
+        if (!trimmed) {
+          return '';
+        }
+        if (invalidTokens.has(trimmed.toLowerCase())) {
+          return '';
+        }
+        return trimmed;
+      })()
       : typeof trackIdentifier === 'number' && Number.isFinite(trackIdentifier)
         ? trackIdentifier
         : null;
