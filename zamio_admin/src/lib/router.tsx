@@ -130,7 +130,7 @@ const router = createBrowserRouter([
           { path: 'stations', element: <Stations /> },
           { path: 'station/:id', element: <StationDetail /> },
           { path: 'partners', element: <Partners /> },
-          { path: 'partners/:type/:id', element: <PartnerDetail /> },
+          { path: 'partners/:id', element: <PartnerDetail /> },
           { path: 'agreements', element: <Agreements /> },
           { path: 'disputes', element: <Disputes /> },
           { path: 'disputes/analytics', element: <DisputesAnalytics /> },

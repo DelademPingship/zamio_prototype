@@ -10,6 +10,7 @@ from music_monitor.models import MatchCache, PlayLog
 from music_monitor.serializers import MatchCacheSerializer, PlayLogSerializer
 from stations.models import Station, StationProgram
 from rest_framework.authentication import TokenAuthentication
+from accounts.api.custom_jwt import CustomJWTAuthentication
 
 # MatchCache Views
 
@@ -68,7 +69,7 @@ def add_matchcache(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_matchcache_list(request):
     payload = {}
     data = {}
@@ -183,7 +184,7 @@ def add_playlog(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_playlog_list(request):
     payload = {}
     data = {}

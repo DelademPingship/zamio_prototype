@@ -107,8 +107,8 @@ def get_all_publishers_view(request):
     except EmptyPage:
         paginated_publishers = paginator.page(paginator.num_pages)
 
-    from ..serializers import AllPublisherProfilesSerializer 
-    serializer = AllPublisherProfilesSerializer(paginated_publishers, many=True)
+    from ..serializers import PublisherListSerializer 
+    serializer = PublisherListSerializer(paginated_publishers, many=True)
 
     data['publishers'] = serializer.data
     data['pagination'] = {
@@ -139,20 +139,21 @@ def get_publisher_details_view(request):
     publisher_id = request.query_params.get('publisher_id')
 
     if not publisher_id:
-        errors['publisher_id'] = ["PublisherProfile ID is required"]
+        errors['publisher_id'] = ["Publisher ID is required"]
 
-    try:
-        publisher = PublisherProfile.objects.get(publisher_id=publisher_id)
-    except PublisherProfile.DoesNotExist:
-        errors['publisher_id'] = ['PublisherProfile does not exist']
+    if not errors:
+        try:
+            publisher = PublisherProfile.objects.get(publisher_id=publisher_id)
+        except PublisherProfile.DoesNotExist:
+            errors['publisher_id'] = ['Publisher does not exist']
 
     if errors:
         payload['message'] = "Errors"
         payload['errors'] = errors
         return Response(payload, status=status.HTTP_400_BAD_REQUEST)
 
-    from ..serializers import PublisherProfileSerializer
-    serializer = PublisherProfileSerializer(publisher)
+    from ..serializers import PublisherDetailsSerializer
+    serializer = PublisherDetailsSerializer(publisher)
 
     payload['message'] = "Successful"
     payload['data'] = serializer.data

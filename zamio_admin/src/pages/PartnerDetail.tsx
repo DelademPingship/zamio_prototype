@@ -20,10 +20,12 @@ import {
   CheckCircle,
   Clock,
   Eye,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '@zamio/ui';
+import { fetchPublisherDetails, type PublisherDetailResponse } from '../lib/api';
 
-// Enhanced mock data with type-specific information
+// Enhanced mock data with type-specific information (kept as fallback)
 const mockPartners = [
   // Local Partners
   {
@@ -225,24 +227,53 @@ const mockPartners = [
 ];
 
 const PartnerDetail = () => {
-  const { type, id } = useParams<{ type: string; id: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [partner, setPartner] = useState<any>(null);
+  const [publisher, setPublisher] = useState<PublisherDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
 
   useEffect(() => {
-    // Find the partner by type and id
-    const foundPartner = mockPartners.find(p => p.type === type && p.id === id);
-    setPartner(foundPartner || null);
-  }, [type, id]);
+    loadPublisherDetails();
+  }, [id]);
 
-  if (!partner) {
+  const loadPublisherDetails = async () => {
+    if (!id) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetchPublisherDetails(id);
+      if (response.data) {
+        setPublisher(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to load publisher details:', err);
+      setError('Failed to load publisher details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-indigo-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading publisher details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !publisher) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <Building className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Partner Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">The requested partner could not be found.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Publisher Not Found</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error || 'The requested publisher could not be found.'}</p>
           <button
             onClick={() => navigate('/partners')}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -253,6 +284,25 @@ const PartnerDetail = () => {
       </div>
     );
   }
+
+  // Determine partner type based on country
+  const partnerType = publisher.country === 'Ghana' ? 'local' : 'international';
+  const partner = {
+    id: publisher.publisher_id,
+    name: publisher.company_name || 'Unnamed Publisher',
+    type: partnerType,
+    reportingStandard: 'CWR',
+    adminFee: parseFloat(publisher.administrative_fee_percentage || '0'),
+    contactInfo: {
+      email: publisher.primary_contact_email || publisher.user?.email || '',
+      phone: publisher.primary_contact_phone || '',
+      address: `${publisher.city || ''}, ${publisher.country || ''}`.trim(),
+      website: publisher.website_url || ''
+    },
+    status: publisher.active ? 'active' : 'inactive',
+    joinDate: new Date(publisher.created_at).toISOString().split('T')[0],
+    description: publisher.description || `${publisher.company_type || 'Publisher'} - ${publisher.industry || 'Music Rights'}`,
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -355,147 +405,176 @@ const PartnerDetail = () => {
               {/* Partner Information */}
               <div className="lg:col-span-2 space-y-6">
                 <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Partner Information</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Publisher Information</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Organization Name</label>
-                      <p className="text-gray-900 dark:text-white font-semibold">{partner.name}</p>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company Name</label>
+                      <p className="text-gray-900 dark:text-white font-semibold">{publisher.company_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Company Type</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.company_type || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Industry</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.industry || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Founded Year</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.founded_year || 'Not provided'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                       <div className="flex items-center space-x-2">
                         <Mail className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 dark:text-white">{partner.contactInfo.email}</p>
+                        <p className="text-gray-900 dark:text-white">{publisher.primary_contact_email || 'Not provided'}</p>
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone Number</label>
                       <div className="flex items-center space-x-2">
                         <Phone className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 dark:text-white">{partner.contactInfo.phone}</p>
+                        <p className="text-gray-900 dark:text-white">{publisher.primary_contact_phone || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-900 dark:text-white">{publisher.city}, {publisher.region}, {publisher.country}</p>
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.address || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tax ID</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.tax_id || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Business Registration</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.business_registration_number || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">License Number</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.license_number || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Employee Count</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.employee_count || 'Not provided'}</p>
+                    </div>
+                    {publisher.website_url && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Website</label>
+                        <a href={publisher.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:underline">
+                          <Globe className="w-4 h-4" />
+                          <span>{publisher.website_url}</span>
+                        </a>
+                      </div>
+                    )}
+                    {publisher.description && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                        <p className="text-gray-700 dark:text-gray-300">{publisher.description}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Compliance Officer */}
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Compliance Officer</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                      <p className="text-gray-900 dark:text-white font-semibold">{publisher.compliance_officer_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+                      <p className="text-gray-900 dark:text-white">{publisher.compliance_officer_title || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
                       <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 dark:text-white">{partner.contactInfo.address}</p>
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-900 dark:text-white">{publisher.compliance_officer_email || 'Not provided'}</p>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reporting Standard</label>
-                      <p className="text-gray-900 dark:text-white font-semibold">{partner.reportingStandard}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Admin Fee</label>
-                      <p className="text-gray-900 dark:text-white font-semibold">{partner.adminFee}%</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
-                      <p className="text-gray-700 dark:text-gray-300">{partner.description}</p>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phone</label>
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <p className="text-gray-900 dark:text-white">{publisher.compliance_officer_phone || 'Not provided'}</p>
+                      </div>
                     </div>
                   </div>
                 </Card>
 
-                {/* Type-Specific Information */}
-                {partner.type === 'local' && partner.localSpecific && (
-                  <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Local Partner Information</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Registration Number</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.localSpecific.registrationNumber}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Regulatory Body</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.localSpecific.regulatoryBody}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Primary Territory</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.localSpecific.primaryTerritory}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Local Compliance</span>
-                        <span className="font-semibold text-green-600">{partner.localSpecific.localCompliance}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Artist Members</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.localSpecific.artistMembers.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Last Audit</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.localSpecific.lastAuditDate}</span>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-
-                {partner.type === 'international' && partner.internationalSpecific && (
-                  <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">International Partner Information</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Global Headquarters</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.internationalSpecific.globalHeadquarters}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Member Count</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.internationalSpecific.memberCount.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Established</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.internationalSpecific.establishedYear}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600 dark:text-gray-400 block mb-2">Active Territories</span>
-                        <div className="flex flex-wrap gap-2">
-                          {partner.internationalSpecific.territories.map((territory: string, index: number) => (
-                            <span key={index} className="px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300 rounded-full text-sm">
-                              {territory}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Reciprocal Partners</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.internationalSpecific.reciprocalPartners}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 dark:text-gray-400">Last Global Report</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{partner.internationalSpecific.lastGlobalReport}</span>
-                      </div>
-                    </div>
-                  </Card>
-                )}
+                {/* Type-Specific Information - Placeholder for future implementation */}
+                {/* These sections will be populated when backend provides additional partner-specific data */}
               </div>
 
               {/* Quick Stats */}
               <div className="space-y-6">
                 <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Publisher Status</h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Total Agreements</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{partner.metrics.totalAgreements}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Active</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{publisher.active ? 'Yes' : 'No'}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Active Agreements</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{partner.metrics.activeAgreements}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Total Collected</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">₵{partner.metrics.totalRoyaltyCollected.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Collection Efficiency</span>
-                      <span className="font-semibold text-green-600">{partner.metrics.collectionEfficiency}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Active Disputes</span>
-                      <span className={`font-semibold ${partner.metrics.disputeCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {partner.metrics.disputeCount}
+                      <span className="text-gray-600 dark:text-gray-400">Verified</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${publisher.verified ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'}`}>
+                        {publisher.verified ? 'Verified' : 'Unverified'}
                       </span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">Member Since</span>
+                      <span className="text-sm text-gray-900 dark:text-white">{new Date(publisher.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Revenue Splits</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">Writer Split</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{publisher.writer_split || '0'}%</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 dark:text-gray-400">Publisher Split</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">{publisher.publisher_split || '0'}%</span>
+                    </div>
+                    {publisher.administrative_fee_percentage && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Admin Fee</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{publisher.administrative_fee_percentage}%</span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Onboarding Progress</h3>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Profile', completed: publisher.profile_completed },
+                      { label: 'Revenue Split', completed: publisher.revenue_split_completed },
+                      { label: 'Link Artist', completed: publisher.link_artist_completed },
+                      { label: 'Payment Info', completed: publisher.payment_info_added },
+                    ].map((step) => (
+                      <div key={step.label} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">{step.label}</span>
+                        {step.completed ? (
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <Clock className="w-5 h-5 text-gray-400" />
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </Card>
               </div>
@@ -513,103 +592,32 @@ const PartnerDetail = () => {
                   View All Agreements →
                 </Link>
               </div>
-              <div className="space-y-4">
-                {partner.agreements.map((agreement: any) => (
-                  <div key={agreement.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-800/70 transition-colors">
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900 dark:text-white">{agreement.territory}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Started: {agreement.startDate}</div>
-                    </div>
-                    <div className="text-right mr-4">
-                      <div className="text-gray-900 dark:text-white font-semibold">₵{agreement.performance.collections.toLocaleString()}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{agreement.performance.disputes} disputes</div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${agreement.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {agreement.status}
-                      </span>
-                      <Link
-                        to={`/agreements`}
-                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                        title="View in Agreements"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">No agreements data available yet.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Agreement information will be displayed here once configured.</p>
               </div>
             </Card>
           )}
 
           {activeTab === 'performance' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Performance Metrics</h3>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <TrendingUp className="w-8 h-8 text-green-600" />
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Collection Efficiency</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{partner.metrics.collectionEfficiency}%</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <DollarSign className="w-8 h-8 text-blue-600" />
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Total Collected</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">₵{partner.metrics.totalRoyaltyCollected.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`flex items-center justify-between p-4 rounded-lg ${partner.metrics.disputeCount > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
-                    <div className="flex items-center space-x-3">
-                      <AlertTriangle className={`w-8 h-8 ${partner.metrics.disputeCount > 0 ? 'text-red-600' : 'text-green-600'}`} />
-                      <div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Active Disputes</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{partner.metrics.disputeCount}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Agreement Overview</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Total Agreements</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{partner.metrics.totalAgreements}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Active Agreements</span>
-                    <span className="font-semibold text-green-600">{partner.metrics.activeAgreements}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600 dark:text-gray-400">Last Collection</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{partner.metrics.lastCollectionDate}</span>
-                  </div>
-                </div>
-              </Card>
-            </div>
+            <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Performance Metrics</h3>
+              <div className="text-center py-12">
+                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">No performance data available yet.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Performance metrics will be displayed here once royalty collections are processed.</p>
+              </div>
+            </Card>
           )}
 
           {activeTab === 'activity' && (
             <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Recent Activity</h3>
-              <div className="space-y-4">
-                {partner.activityLog.map((activity: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
-                    <div className={`w-2 h-2 rounded-full ${activity.type === 'collection' ? 'bg-green-500' : activity.type === 'dispute' ? 'bg-red-500' : activity.type === 'compliance' ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
-                    <div className="flex-1">
-                      <p className="text-gray-900 dark:text-white font-medium">{activity.action}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{activity.date}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-12">
+                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">No activity logs available yet.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Publisher activity will be tracked and displayed here.</p>
               </div>
             </Card>
           )}

@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Activity, Eye, Search, Clock, Radio, Music, TrendingUp, Filter, Download, Settings, MoreVertical, Trash2, Edit, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Activity, Eye, Search, Clock, Radio, Music, TrendingUp, Filter, Download, Settings, MoreVertical, Trash2, Edit, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { fetchAllPlayLogs, fetchAllMatchCache, type PlayLog as ApiPlayLog, type MatchCache as ApiMatchCache } from '../lib/api';
 
 // Type definitions for better type safety
 interface PlayLogData {
@@ -205,10 +206,106 @@ const PlayLogs: React.FC = () => {
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Real data state
+  const [playLogs, setPlayLogs] = useState<ApiPlayLog[]>([]);
+  const [matchCache, setMatchCache] = useState<ApiMatchCache[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Load data when tab or page changes
+  useEffect(() => {
+    loadData();
+  }, [activeTab, currentPage]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (activeTab === 'playlogs') {
+        const response = await fetchAllPlayLogs({ page: currentPage, search: searchTerm });
+        if (response.data) {
+          setPlayLogs(response.data.play_logs || []);
+          setTotalPages(response.data.pagination?.total_pages || 1);
+        }
+      } else {
+        const response = await fetchAllMatchCache({ page: currentPage, search: searchTerm });
+        if (response.data) {
+          setMatchCache(response.data.match_cache || []);
+          setTotalPages(response.data.pagination?.total_pages || 1);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Trigger search when searchTerm changes (with debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        loadData();
+      } else {
+        setCurrentPage(1); // This will trigger loadData via the useEffect above
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Helper functions to determine status (must be defined before transformedData)
+  const getPlayLogStatus = (log: ApiPlayLog): 'Confirmed' | 'Pending' | 'Disputed' | 'Rejected' => {
+    if (log.flagged) return 'Disputed';
+    if (log.verification_status === 'verified') return 'Confirmed';
+    if (log.verification_status === 'rejected') return 'Rejected';
+    return 'Pending';
+  };
+
+  const getMatchCacheStatus = (match: ApiMatchCache): 'Verified' | 'Under Review' | 'Rejected' | 'Pending' => {
+    if (match.failed_reason) return 'Rejected';
+    if (match.processed) return 'Verified';
+    return 'Pending';
+  };
+
+  // Transform API data to component format
+  const transformedData = useMemo(() => {
+    if (activeTab === 'playlogs') {
+      return playLogs.map((log): PlayLogData => ({
+        id: log.id,
+        track_title: log.track?.title || 'Unknown Track',
+        artist: log.track?.artist?.stage_name || 'Unknown Artist',
+        station_name: log.station?.name || 'Unknown Station',
+        matched_at: log.played_at || log.start_time || log.created_at,
+        stop_time: log.stop_time,
+        duration: log.duration || '0:00',
+        royalty_amount: parseFloat(log.royalty_amount || '0'),
+        status: getPlayLogStatus(log),
+        attribution_source: log.source || 'Station',
+        plays: 0, // Not available in API
+        isrc: log.track?.isrc_code,
+        confidence_score: log.avg_confidence_score ? parseFloat(log.avg_confidence_score) : undefined,
+      }));
+    } else {
+      return matchCache.map((match): MatchLogData => ({
+        id: match.id,
+        song: match.track?.title || 'Unknown Track',
+        artist: match.track?.artist?.stage_name || 'Unknown Artist',
+        station: match.station?.name || 'Unknown Station',
+        matched_at: match.matched_at || match.created_at,
+        confidence: match.avg_confidence_score ? parseFloat(match.avg_confidence_score) : 0,
+        source: 'ACRCloud', // Default source
+        match_type: 'Exact Match', // Default type
+        status: getMatchCacheStatus(match),
+      }));
+    }
+  }, [activeTab, playLogs, matchCache]);
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
-    let data: (PlayLogData | MatchLogData)[] = activeTab === 'playlogs' ? playLogsData : matchLogsData;
+    let data: (PlayLogData | MatchLogData)[] = transformedData;
 
     // Apply search filter
     if (searchTerm) {
@@ -311,12 +408,10 @@ const PlayLogs: React.FC = () => {
     });
 
     return data;
-  }, [activeTab, searchTerm, sortBy, sortOrder, statusFilter]);
+  }, [transformedData, searchTerm, sortBy, sortOrder, statusFilter]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredAndSortedData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = filteredAndSortedData.slice(startIndex, startIndex + itemsPerPage);
+  // Use filtered data directly (pagination handled by backend)
+  const paginatedData = filteredAndSortedData;
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -397,6 +492,17 @@ const PlayLogs: React.FC = () => {
     );
   };
 
+  if (loading && playLogs.length === 0 && matchCache.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 text-indigo-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading {activeTab === 'playlogs' ? 'play logs' : 'match logs'}...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
         {/* Page header */}
@@ -472,21 +578,7 @@ const PlayLogs: React.FC = () => {
 
               {/* Count and Items Per Page */}
               <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                <span>{filteredAndSortedData.length} total entries</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1); // Reset to first page when changing items per page
-                  }}
-                  className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value={5}>5 per page</option>
-                  <option value={10}>10 per page</option>
-                  <option value={25}>25 per page</option>
-                  <option value={50}>50 per page</option>
-                  <option value={100}>100 per page</option>
-                </select>
+                <span>{paginatedData.length} entries on this page</span>
               </div>
 
               {/* Bulk Actions */}
@@ -839,9 +931,8 @@ const PlayLogs: React.FC = () => {
             {totalPages > 1 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-800/30 -mx-8 px-8 py-4 rounded-b-2xl">
                 <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                  Showing <span className="text-blue-600 dark:text-blue-400 font-semibold">{startIndex + 1}</span> to{' '}
-                  <span className="text-blue-600 dark:text-blue-400 font-semibold">{Math.min(startIndex + itemsPerPage, filteredAndSortedData.length)}</span> of{' '}
-                  <span className="text-blue-600 dark:text-blue-400 font-semibold">{filteredAndSortedData.length}</span> entries
+                  Page <span className="text-blue-600 dark:text-blue-400 font-semibold">{currentPage}</span> of{' '}
+                  <span className="text-blue-600 dark:text-blue-400 font-semibold">{totalPages}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -890,10 +981,10 @@ const PlayLogs: React.FC = () => {
               </div>
             )}
 
-            {totalPages === 1 && filteredAndSortedData.length > 0 && (
+            {totalPages === 1 && paginatedData.length > 0 && (
               <div className="flex justify-center mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Showing all {filteredAndSortedData.length} entries
+                  Showing all {paginatedData.length} entries
                 </div>
               </div>
             )}

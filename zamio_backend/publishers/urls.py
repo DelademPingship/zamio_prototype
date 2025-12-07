@@ -35,6 +35,10 @@ from publishers.views.publisher_profile_views import (
     get_publisher_profile_view,
     update_publisher_account_settings_view,
 )
+from publishers.views.publisher_view import (
+    get_all_publishers_view,
+    get_publisher_details_view,
+)
 
 app_name = 'publishers'
 
@@ -68,6 +72,10 @@ api_urlpatterns = [
     path('artists/detail/', get_managed_artist_details_view, name='publisher-artist-detail'),
     path('profile/', get_publisher_profile_view, name='publisher-profile'),
     path('account-settings/', update_publisher_account_settings_view, name='publisher-account-settings'),
+    
+    # Admin endpoints for listing all publishers
+    path('get-all-publishers/', get_all_publishers_view, name='get-all-publishers'),
+    path('get-publisher-details/', get_publisher_details_view, name='get-publisher-details'),
 ]
 
 urlpatterns = api_urlpatterns

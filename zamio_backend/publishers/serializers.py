@@ -187,11 +187,44 @@ class AllPublishersSerializer(serializers.ModelSerializer):
         return obj.user.timestamp if obj.user else None
 
 
+class PublisherListSerializer(serializers.ModelSerializer):
+    """Serializer for listing publishers in admin panel"""
+    user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PublisherProfile
+        fields = [
+            'publisher_id', 'company_name', 'company_type', 'industry',
+            'country', 'region', 'city', 'verified', 'active', 'created_at',
+            'primary_contact_email', 'primary_contact_phone', 'website_url', 'user'
+        ]
+    
+    def get_user(self, obj):
+        if obj.user:
+            return {
+                'email': obj.user.email,
+                'first_name': obj.user.first_name or '',
+                'last_name': obj.user.last_name or '',
+            }
+        return None
+
+
 class PublisherDetailsSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
 
     class Meta:
         model = PublisherProfile
         fields = "__all__"
+    
+    def get_user(self, obj):
+        if obj.user:
+            return {
+                'email': obj.user.email,
+                'first_name': obj.user.first_name or '',
+                'last_name': obj.user.last_name or '',
+                'photo': obj.user.photo.url if hasattr(obj.user, 'photo') and obj.user.photo else None,
+            }
+        return None
 
 
 

@@ -142,7 +142,7 @@ const StationBalances: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading station balances...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading station balances...</p>
         </div>
       </div>
     );
@@ -154,7 +154,7 @@ const StationBalances: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-          <p className="text-gray-600">Please log in to view station balances</p>
+          <p className="text-gray-600 dark:text-gray-400">Please log in to view station balances</p>
         </div>
       </div>
     );
@@ -163,12 +163,12 @@ const StationBalances: React.FC = () => {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
           <div className="flex items-center space-x-3">
             <AlertCircle className="w-6 h-6 text-red-600" />
             <div>
-              <h3 className="text-lg font-semibold text-red-900">Error</h3>
-              <p className="text-red-700">{error}</p>
+              <h3 className="text-lg font-semibold text-red-900 dark:text-red-400">Error</h3>
+              <p className="text-red-700 dark:text-red-300">{error}</p>
             </div>
           </div>
           <button
@@ -185,7 +185,7 @@ const StationBalances: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border-b border-gray-200 rounded-2xl p-8">
+      <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-800 border-b border-gray-200 dark:border-slate-700 rounded-2xl p-8">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center space-x-3 mb-2">
@@ -193,8 +193,8 @@ const StationBalances: React.FC = () => {
                 <Radio className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Station Balances</h1>
-                <p className="text-gray-600">Manage station account balances and funding</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Station Balances</h1>
+                <p className="text-gray-600 dark:text-gray-400">Manage station account balances and funding</p>
               </div>
             </div>
           </div>
@@ -210,69 +210,69 @@ const StationBalances: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Radio className="w-6 h-6 text-blue-600" />
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+              <Radio className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{stations.length}</div>
-              <div className="text-sm text-gray-600">Total Stations</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stations.length}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Stations</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <DollarSign className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+              <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(getTotalBalance())}
               </div>
-              <div className="text-sm text-gray-600">Total Balance</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Balance</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-100 rounded-xl">
-              <TrendingDown className="w-6 h-6 text-red-600" />
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+              <TrendingDown className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(getTotalSpent())}
               </div>
-              <div className="text-sm text-gray-600">Total Spent</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Spent</div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <Activity className="w-6 h-6 text-purple-600" />
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+              <Activity className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {getTotalPlays().toLocaleString()}
               </div>
-              <div className="text-sm text-gray-600">Total Plays</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Plays</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Station List */}
-      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Station Accounts</h2>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Station Accounts</h2>
 
         {stations.length === 0 ? (
           <div className="text-center py-12">
-            <Radio className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No stations found</p>
+            <Radio className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">No stations found</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -281,16 +281,16 @@ const StationBalances: React.FC = () => {
               return (
                 <div
                   key={station.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-indigo-300 transition-colors duration-200"
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors duration-200"
                 >
                   <div className="flex items-center space-x-4 flex-1">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                      <Radio className="w-5 h-5 text-indigo-600" />
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                      <Radio className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-gray-900">{station.name}</div>
+                      <div className="font-bold text-gray-900 dark:text-white">{station.name}</div>
                       {balance ? (
-                        <div className="text-sm text-gray-600 mt-1 space-y-1">
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 space-y-1">
                           <div>Account ID: {balance.account_id}</div>
                           <div className="flex items-center space-x-4">
                             <span>Spent: {formatCurrency(balance.total_spent)}</span>
@@ -299,7 +299,7 @@ const StationBalances: React.FC = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500 mt-1">Loading balance...</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">Loading balance...</div>
                       )}
                     </div>
                   </div>
@@ -308,13 +308,13 @@ const StationBalances: React.FC = () => {
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <div className={`text-2xl font-bold ${
-                          parseFloat(balance.balance) < 100 ? 'text-red-600' :
-                          parseFloat(balance.balance) < 1000 ? 'text-amber-600' :
-                          'text-green-600'
+                          parseFloat(balance.balance) < 100 ? 'text-red-600 dark:text-red-400' :
+                          parseFloat(balance.balance) < 1000 ? 'text-amber-600 dark:text-amber-400' :
+                          'text-green-600 dark:text-green-400'
                         }`}>
                           {formatCurrency(balance.balance)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-500">
                           {balance.allow_negative_balance ? (
                             <span>Credit: {formatCurrency(balance.credit_limit)}</span>
                           ) : (
@@ -341,9 +341,9 @@ const StationBalances: React.FC = () => {
       {/* Add Funds Modal */}
       {showAddFundsModal && selectedStation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Add Funds to Station</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add Funds to Station</h3>
               <button
                 onClick={() => {
                   setShowAddFundsModal(false);
@@ -351,42 +351,42 @@ const StationBalances: React.FC = () => {
                   setFundAmount('');
                   setFundDescription('');
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
               >
-                <AlertCircle className="w-5 h-5 text-gray-600" />
+                <AlertCircle className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                   Station: <span className="font-bold">{stations.find(s => s.id === selectedStation)?.name}</span>
                 </p>
                 {balances.get(selectedStation) && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     Current Balance: <span className="font-bold">{formatCurrency(balances.get(selectedStation)!.balance)}</span>
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Amount (GHS) *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₵</span>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">₵</span>
                   <input
                     type="number"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Description (Optional)
                 </label>
                 <textarea
@@ -394,7 +394,7 @@ const StationBalances: React.FC = () => {
                   onChange={(e) => setFundDescription(e.target.value)}
                   placeholder="e.g., Monthly top-up, Initial funding..."
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -407,7 +407,7 @@ const StationBalances: React.FC = () => {
                   setFundAmount('');
                   setFundDescription('');
                 }}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>

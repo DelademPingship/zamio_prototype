@@ -783,3 +783,217 @@ export const addDisputeEvidence = async (disputeId: string, formData: FormData) 
   );
   return data;
 };
+
+// Publishers API
+export interface Publisher {
+  publisher_id: string;
+  company_name: string;
+  company_type: string;
+  industry: string;
+  country: string;
+  region: string;
+  city: string;
+  verified: boolean;
+  active: boolean;
+  created_at: string;
+  primary_contact_email: string;
+  primary_contact_phone: string;
+  website_url: string;
+  user?: {
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
+export interface PublishersListResponse {
+  publishers: Publisher[];
+  pagination: {
+    page_number: number;
+    total_pages: number;
+    next: number | null;
+    previous: number | null;
+  };
+}
+
+export interface PublishersParams {
+  page?: number;
+  search?: string;
+}
+
+export const fetchAllPublishers = async (params: PublishersParams = {}) => {
+  const { data } = await authApi.get<ApiEnvelope<PublishersListResponse>>(
+    '/api/publishers/get-all-publishers/',
+    { params }
+  );
+  return data;
+};
+
+export interface PublisherDetailResponse {
+  publisher_id: string;
+  company_name: string;
+  company_type: string;
+  industry: string;
+  founded_year: number | null;
+  employee_count: number | null;
+  primary_contact_name: string;
+  primary_contact_email: string;
+  primary_contact_phone: string;
+  compliance_officer_name: string;
+  compliance_officer_email: string;
+  compliance_officer_phone: string;
+  compliance_officer_title: string;
+  tax_id: string;
+  business_registration_number: string;
+  license_number: string;
+  region: string;
+  city: string;
+  country: string;
+  address: string;
+  postal_code: string;
+  location_name: string;
+  lat: string | null;
+  lng: string | null;
+  website_url: string;
+  description: string;
+  bank_name: string;
+  bank_account: string;
+  bank_account_name: string;
+  bank_branch_code: string;
+  bank_swift_code: string;
+  momo_account: string;
+  momo_account_name: string;
+  momo_provider: string;
+  preferred_payment_method: string;
+  payout_currency: string;
+  payout_frequency: string;
+  minimum_payout_amount: string | null;
+  withholding_tax_rate: string | null;
+  vat_registration_number: string;
+  verified: boolean;
+  writer_split: string | null;
+  publisher_split: string | null;
+  mechanical_share: string | null;
+  performance_share: string | null;
+  sync_share: string | null;
+  administrative_fee_percentage: string | null;
+  revenue_split_notes: string;
+  onboarding_step: string;
+  profile_completed: boolean;
+  revenue_split_completed: boolean;
+  link_artist_completed: boolean;
+  payment_info_added: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    email: string;
+    first_name: string;
+    last_name: string;
+    photo?: string | null;
+  };
+}
+
+export const fetchPublisherDetails = async (publisherId: string) => {
+  const { data } = await authApi.get<ApiEnvelope<PublisherDetailResponse>>(
+    '/api/publishers/get-publisher-details/',
+    { params: { publisher_id: publisherId } }
+  );
+  return data;
+};
+
+// Playlogs API
+export interface PlayLog {
+  id: number;
+  track: {
+    id: number;
+    title: string;
+    artist: {
+      id: number;
+      stage_name: string;
+    };
+    isrc_code?: string;
+  };
+  station: {
+    id: number;
+    name: string;
+  };
+  start_time: string;
+  stop_time: string;
+  duration: string | null;
+  royalty_amount: string;
+  source: string;
+  played_at: string | null;
+  flagged: boolean;
+  verification_status: string;
+  avg_confidence_score: string | null;
+  created_at: string;
+}
+
+export interface PlayLogsListResponse {
+  play_logs: PlayLog[];
+  pagination: {
+    page_number: number;
+    total_pages: number;
+    next: number | null;
+    previous: number | null;
+  };
+}
+
+export interface PlayLogsParams {
+  page?: number;
+  search?: string;
+}
+
+export const fetchAllPlayLogs = async (params: PlayLogsParams = {}) => {
+  const { data } = await authApi.get<ApiEnvelope<PlayLogsListResponse>>(
+    '/api/music-monitor/playlog/list/',
+    { params }
+  );
+  return data;
+};
+
+// Match Cache API
+export interface MatchCache {
+  id: number;
+  track: {
+    id: number;
+    title: string;
+    artist: {
+      id: number;
+      stage_name: string;
+    };
+  };
+  station: {
+    id: number;
+    name: string;
+  };
+  matched_at: string;
+  avg_confidence_score: string | null;
+  processed: boolean;
+  failed_reason: string | null;
+  created_at: string;
+}
+
+export interface MatchCacheListResponse {
+  match_cache: MatchCache[];
+  pagination: {
+    page_number: number;
+    total_pages: number;
+    next: number | null;
+    previous: number | null;
+  };
+}
+
+export interface MatchCacheParams {
+  page?: number;
+  search?: string;
+}
+
+export const fetchAllMatchCache = async (params: MatchCacheParams = {}) => {
+  const { data } = await authApi.get<ApiEnvelope<MatchCacheListResponse>>(
+    '/api/music-monitor/matchcache/list/',
+    { params }
+  );
+  return data;
+};

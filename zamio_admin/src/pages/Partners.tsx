@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Building,
@@ -13,10 +13,12 @@ import {
   Globe,
   FileText,
   Activity,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card } from '@zamio/ui';
+import { fetchAllPublishers, type Publisher } from '../lib/api';
 
-// Mock data from our reference documents
+// Mock data from our reference documents (kept as fallback)
 const mockPartners = [
   // Local Partners
   {
@@ -141,24 +143,80 @@ const Partners = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'local' | 'international'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Fetch publishers from API
+  useEffect(() => {
+    const loadPublishers = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params: any = {
+          page,
+        };
+        
+        if (searchTerm) params.search = searchTerm;
+
+        const response = await fetchAllPublishers(params);
+        if (response.data) {
+          setPublishers(response.data.publishers || []);
+          setTotalPages(response.data.pagination?.total_pages || 1);
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch publishers:', err);
+        setError(err?.response?.data?.message || 'Failed to load publishers. Please try again.');
+        setPublishers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPublishers();
+  }, [searchTerm, page]);
+
+  // Transform publishers to match the UI format
+  const transformedPartners = publishers.map(pub => ({
+    id: pub.publisher_id,
+    name: pub.company_name || 'Unnamed Publisher',
+    type: pub.country === 'Ghana' ? 'local' : 'international',
+    reportingStandard: 'CWR',
+    adminFee: 0,
+    contactInfo: {
+      email: pub.primary_contact_email || pub.user?.email || '',
+      phone: pub.primary_contact_phone || '',
+      address: `${pub.city || ''}, ${pub.country || ''}`.trim(),
+      website: pub.website_url || ''
+    },
+    status: pub.active ? 'active' : 'inactive',
+    joinDate: new Date(pub.created_at).toISOString().split('T')[0],
+    description: `${pub.company_type || 'Publisher'} - ${pub.industry || 'Music Rights'}`,
+    metrics: {
+      totalAgreements: 0,
+      activeAgreements: 0,
+      totalRoyaltyCollected: 0,
+      lastCollectionDate: new Date().toISOString().split('T')[0],
+      disputeCount: 0
+    }
+  }));
 
   // Filter partners based on active tab and search
-  const filteredPartners = mockPartners.filter(partner => {
+  const filteredPartners = transformedPartners.filter(partner => {
     const matchesTab = activeTab === 'all' || partner.type === activeTab;
-    const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         partner.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || partner.status === statusFilter;
-
-    return matchesTab && matchesSearch && matchesStatus;
+    return matchesTab && matchesStatus;
   });
 
   // Calculate summary stats
   const stats = {
-    totalPartners: mockPartners.length,
-    localPartners: mockPartners.filter(p => p.type === 'local').length,
-    internationalPartners: mockPartners.filter(p => p.type === 'international').length,
-    activeAgreements: mockPartners.reduce((sum, p) => sum + p.metrics.activeAgreements, 0),
-    totalRoyaltyCollected: mockPartners.reduce((sum, p) => sum + p.metrics.totalRoyaltyCollected, 0),
+    totalPartners: transformedPartners.length,
+    localPartners: transformedPartners.filter(p => p.type === 'local').length,
+    internationalPartners: transformedPartners.filter(p => p.type === 'international').length,
+    activeAgreements: transformedPartners.reduce((sum, p) => sum + p.metrics.activeAgreements, 0),
+    totalRoyaltyCollected: transformedPartners.reduce((sum, p) => sum + p.metrics.totalRoyaltyCollected, 0),
   };
 
   const getStatusColor = (status: string) => {
@@ -339,7 +397,29 @@ const Partners = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredPartners.map((partner) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading publishers...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                      <p className="text-red-600 dark:text-red-400">{error}</p>
+                      <button 
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ) : filteredPartners.map((partner) => (
                   <tr key={partner.id} className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
@@ -375,7 +455,7 @@ const Partners = () => {
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/partners/${partner.type}/${partner.id}`}
+                          to={`/partners/${partner.id}`}
                           className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
                         >
                           <Eye className="w-4 h-4" />
@@ -393,7 +473,7 @@ const Partners = () => {
               </tbody>
             </table>
           </div>
-          {filteredPartners.length === 0 && (
+          {!loading && !error && filteredPartners.length === 0 && (
             <div className="text-center py-12">
               <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">No partners found matching your criteria.</p>
