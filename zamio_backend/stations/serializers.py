@@ -141,15 +141,38 @@ class StationPlayLogSerializer(serializers.ModelSerializer):
         return float(obj.royalty_amount)
 
     def get_status(self, obj):
-        if getattr(obj, 'flagged', False):
-            return 'Flagged'
-        if getattr(obj, 'claimed', False):
-            return 'Confirmed'
+        """
+        Station-specific status showing both verification and payment status.
+        Stations care about payment obligations.
+        """
+        # Check dispute/flagged status first
+        if getattr(obj, 'flagged', False) or getattr(obj, 'verification_status', None) == 'disputed':
+            return 'Disputed'
+        
         try:
             if Dispute.objects.filter(playlog=obj, dispute_status='Resolved').exists():
                 return 'Resolved'
         except Exception:
             pass
+        
+        # Check verification status
+        if getattr(obj, 'verification_status', None) == 'rejected':
+            return 'Rejected'
+        
+        # Check payment status (station's perspective)
+        payment_status = getattr(obj, 'payment_status', 'pending')
+        if payment_status == 'charged':
+            return 'Paid'
+        elif payment_status == 'failed':
+            return 'Payment Failed'
+        elif payment_status == 'refunded':
+            return 'Refunded'
+        
+        # Verified but not yet charged
+        if getattr(obj, 'verification_status', 'verified') == 'verified':
+            return 'Pending Payment'
+        
+        # Default to pending
         return 'Pending'
 
     def get_attribution_source(self, obj):

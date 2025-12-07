@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -19,148 +19,63 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Card } from '@zamio/ui';
-
-// Mock data for disputes
-const mockDisputes = [
-  {
-    id: 'dispute-attribution-001',
-    title: 'Incorrect Artist Attribution for "Ghana Love"',
-    description: 'Station reported incorrect artist attribution for track played on 2023-12-15',
-    type: 'station_flagged',
-    category: 'attribution',
-    status: 'investigating',
-    priority: 'high',
-    stationId: 'station-radio-1',
-    stationName: 'Accra FM',
-    stationType: 'radio',
-    stationLocation: 'Accra, Ghana',
-    flaggedDate: '2023-12-15T10:30:00Z',
-    flaggedBy: 'station-user-1',
-    lastUpdated: '2023-12-16T14:20:00Z',
-    assignedTo: 'admin-user-1',
-    assignedDate: '2023-12-15T11:00:00Z',
-    estimatedImpact: 250.00,
-    evidenceCount: 2,
-    notesCount: 2
-  },
-  {
-    id: 'dispute-payment-001',
-    title: 'Missing Royalty Payment for Q4 2023',
-    description: 'Station has not received expected royalty payment for Q4 2023 performances',
-    type: 'station_flagged',
-    category: 'payment',
-    status: 'pending_info',
-    priority: 'high',
-    stationId: 'station-tv-1',
-    stationName: 'Ghana TV',
-    stationType: 'tv',
-    stationLocation: 'Accra, Ghana',
-    flaggedDate: '2023-12-20T09:15:00Z',
-    flaggedBy: 'station-user-2',
-    lastUpdated: '2023-12-20T16:45:00Z',
-    assignedTo: 'admin-user-2',
-    assignedDate: '2023-12-20T10:00:00Z',
-    estimatedImpact: 1250.00,
-    evidenceCount: 1,
-    notesCount: 1
-  },
-  {
-    id: 'dispute-cross-station-001',
-    title: 'Conflicting Attribution Across Multiple Stations',
-    description: 'Multiple stations reporting the same track with different artist attributions',
-    type: 'cross_station',
-    category: 'attribution',
-    status: 'escalated',
-    priority: 'critical',
-    stationId: 'multiple',
-    stationName: 'Multiple Stations',
-    stationType: 'various',
-    stationLocation: 'Various Locations',
-    flaggedDate: '2023-12-18T14:00:00Z',
-    flaggedBy: 'admin-user-1',
-    lastUpdated: '2023-12-19T11:30:00Z',
-    assignedTo: 'admin-user-3',
-    assignedDate: '2023-12-18T15:00:00Z',
-    estimatedImpact: 500.00,
-    evidenceCount: 1,
-    notesCount: 1
-  },
-  {
-    id: 'dispute-technical-001',
-    title: 'API Connectivity Issues with Attribution System',
-    description: 'Streaming station experiencing intermittent API failures',
-    type: 'station_flagged',
-    category: 'technical',
-    status: 'investigating',
-    priority: 'medium',
-    stationId: 'station-streaming-1',
-    stationName: 'AfroStream',
-    stationType: 'streaming',
-    stationLocation: 'Kumasi, Ghana',
-    flaggedDate: '2023-12-14T16:45:00Z',
-    flaggedBy: 'station-user-3',
-    lastUpdated: '2023-12-17T10:15:00Z',
-    assignedTo: 'admin-user-4',
-    assignedDate: '2023-12-15T09:00:00Z',
-    estimatedImpact: 0.00,
-    evidenceCount: 1,
-    notesCount: 1
-  },
-  {
-    id: 'dispute-data-001',
-    title: 'Play Count Discrepancy for "Kumasi Vibes"',
-    description: 'Venue reports 15 plays but system shows 12 plays',
-    type: 'station_flagged',
-    category: 'data',
-    status: 'resolved',
-    priority: 'medium',
-    stationId: 'station-venue-1',
-    stationName: 'National Theatre',
-    stationType: 'venue',
-    stationLocation: 'Accra, Ghana',
-    flaggedDate: '2023-12-10T13:20:00Z',
-    flaggedBy: 'station-user-4',
-    lastUpdated: '2023-12-12T16:30:00Z',
-    assignedTo: 'admin-user-2',
-    assignedDate: '2023-12-10T14:00:00Z',
-    resolvedDate: '2023-12-12T16:30:00Z',
-    estimatedImpact: 75.00,
-    evidenceCount: 1,
-    notesCount: 1
-  }
-];
+import { fetchDisputes, type Dispute } from '../lib/api';
 
 const Disputes = () => {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [stationFilter, setStationFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDisputes, setSelectedDisputes] = useState<string[]>([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Filter disputes based on criteria
-  const filteredDisputes = mockDisputes.filter(dispute => {
-    const matchesSearch = dispute.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         dispute.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         dispute.stationName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || dispute.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || dispute.priority === priorityFilter;
-    const matchesCategory = categoryFilter === 'all' || dispute.category === categoryFilter;
-    const matchesStation = stationFilter === 'all' || dispute.stationId === stationFilter;
+  // Fetch disputes from API
+  useEffect(() => {
+    const loadDisputes = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params: any = {
+          page,
+          page_size: 50,
+        };
+        
+        if (statusFilter !== 'all') params.status = statusFilter;
+        if (priorityFilter !== 'all') params.priority = priorityFilter;
+        if (categoryFilter !== 'all') params.type = categoryFilter;
+        if (searchTerm) params.search = searchTerm;
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesStation;
-  });
+        const response = await fetchDisputes(params);
+        setDisputes(response.results);
+        setTotalCount(response.count);
+      } catch (err: any) {
+        console.error('Failed to fetch disputes:', err);
+        setError(err?.response?.data?.message || 'Failed to load disputes. Please try again.');
+        setDisputes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDisputes();
+  }, [statusFilter, priorityFilter, categoryFilter, searchTerm, page]);
+
+  // Filter disputes based on search (client-side for immediate feedback)
+  const filteredDisputes = disputes;
 
   // Calculate summary stats
   const stats = {
-    totalDisputes: mockDisputes.length,
-    openDisputes: mockDisputes.filter(d => d.status === 'open' || d.status === 'investigating' || d.status === 'pending_info').length,
-    resolvedDisputes: mockDisputes.filter(d => d.status === 'resolved').length,
-    escalatedDisputes: mockDisputes.filter(d => d.status === 'escalated').length,
-    totalImpact: mockDisputes.reduce((sum, d) => sum + d.estimatedImpact, 0),
-    avgResolutionTime: 48, // hours (mock data)
+    totalDisputes: totalCount,
+    openDisputes: disputes.filter(d => d.status === 'open' || d.status === 'investigating' || d.status === 'pending').length,
+    resolvedDisputes: disputes.filter(d => d.status === 'resolved').length,
+    escalatedDisputes: disputes.filter(d => d.status === 'escalated').length,
+    totalImpact: 0, // Would need to be calculated from backend
+    avgResolutionTime: 0, // Would need to be calculated from backend
   };
 
   const getStatusColor = (status: string) => {
@@ -382,46 +297,68 @@ const Disputes = () => {
                     />
                   </th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Dispute</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Station</th>
+                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Submitted By</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Status</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Priority</th>
-                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Impact</th>
+                  <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Duration</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Last Updated</th>
                   <th className="text-left py-4 px-4 font-semibold text-gray-900 dark:text-white">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredDisputes.map((dispute) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                        <span className="ml-3 text-gray-600 dark:text-gray-400">Loading disputes...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                      <p className="text-red-600 dark:text-red-400">{error}</p>
+                      <button 
+                        onClick={() => window.location.reload()}
+                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                      >
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ) : filteredDisputes.map((dispute) => (
                   <tr key={dispute.id} className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
                     <td className="py-4 px-4">
                       <input
                         type="checkbox"
                         className="rounded border-gray-300 dark:border-slate-600"
-                        checked={selectedDisputes.includes(dispute.id)}
+                        checked={selectedDisputes.includes(dispute.dispute_id)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelectedDisputes([...selectedDisputes, dispute.id]);
+                            setSelectedDisputes([...selectedDisputes, dispute.dispute_id]);
                           } else {
-                            setSelectedDisputes(selectedDisputes.filter(id => id !== dispute.id));
+                            setSelectedDisputes(selectedDisputes.filter(id => id !== dispute.dispute_id));
                           }
                         }}
                       />
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${dispute.category === 'attribution' ? 'bg-blue-100 dark:bg-blue-900/20' : dispute.category === 'payment' ? 'bg-green-100 dark:bg-green-900/20' : dispute.category === 'data' ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
-                          {getCategoryIcon(dispute.category)}
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${dispute.dispute_type === 'attribution' ? 'bg-blue-100 dark:bg-blue-900/20' : dispute.dispute_type === 'payment' ? 'bg-green-100 dark:bg-green-900/20' : dispute.dispute_type === 'data' ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
+                          {getCategoryIcon(dispute.dispute_type)}
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900 dark:text-white">{dispute.title}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.category} • {dispute.evidenceCount} evidence</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.dispute_type} • {dispute.evidence_count || 0} evidence</div>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">{dispute.stationName}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.stationType} • {dispute.stationLocation}</div>
+                        <div className="font-semibold text-gray-900 dark:text-white">{dispute.submitted_by.first_name} {dispute.submitted_by.last_name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.submitted_by.user_type}</div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
@@ -435,21 +372,21 @@ const Disputes = () => {
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="text-gray-900 dark:text-white font-semibold">₵{dispute.estimatedImpact.toLocaleString()}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.notesCount} notes</div>
+                      <div className="text-gray-900 dark:text-white font-semibold">{dispute.days_open} days</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{dispute.comments_count || 0} comments</div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-gray-900 dark:text-white font-semibold">
-                        {new Date(dispute.lastUpdated).toLocaleDateString()}
+                        {new Date(dispute.updated_at).toLocaleDateString()}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(dispute.lastUpdated).toLocaleTimeString()}
+                        {new Date(dispute.updated_at).toLocaleTimeString()}
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/disputes/${dispute.id}`}
+                          to={`/disputes/${dispute.dispute_id}`}
                           className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
                         >
                           <Eye className="w-4 h-4" />
@@ -467,7 +404,7 @@ const Disputes = () => {
               </tbody>
             </table>
           </div>
-          {filteredDisputes.length === 0 && (
+          {!loading && !error && filteredDisputes.length === 0 && (
             <div className="text-center py-12">
               <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 dark:text-gray-400">No disputes found matching your criteria.</p>

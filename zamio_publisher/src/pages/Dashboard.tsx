@@ -95,11 +95,29 @@ export default function Dashboard() {
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
   const publisherId = useMemo(() => {
+    console.log('=== USER OBJECT DEBUG ===');
+    console.log('User:', user);
+    console.log('User keys:', user ? Object.keys(user) : 'null');
+    
     if (user && typeof user === 'object' && user !== null) {
       const candidate = (user as Record<string, unknown>)['publisher_id'];
+      console.log('publisher_id field:', candidate);
+      
       if (typeof candidate === 'string' && candidate.length > 0) {
+        console.log('✅ Using publisher_id:', candidate);
         return candidate;
       }
+      
+      // Also check for publisherId (alternative field name)
+      const altCandidate = (user as Record<string, unknown>)['publisherId'];
+      console.log('publisherId field:', altCandidate);
+      
+      if (typeof altCandidate === 'string' && altCandidate.length > 0) {
+        console.log('✅ Using publisherId:', altCandidate);
+        return altCandidate;
+      }
+      
+      console.log('❌ No valid publisher ID found in user object');
     }
     return null;
   }, [user]);
@@ -114,6 +132,10 @@ export default function Dashboard() {
         return 'this year';
       case 'monthly':
         return 'this month';
+      case 'all-time':
+      case 'alltime':
+      case 'lifetime':
+        return 'all time';
       default:
         return 'this period';
     }
@@ -129,8 +151,12 @@ export default function Dashboard() {
         return 'Yearly';
       case 'monthly':
         return 'Monthly';
+      case 'all-time':
+      case 'alltime':
+      case 'lifetime':
+        return 'All Time';
       default:
-        return 'All-Time';
+        return 'All Time';
     }
   }, [selectedPeriod]);
 
@@ -146,7 +172,7 @@ export default function Dashboard() {
 
   const loadDashboard = useCallback(async () => {
     if (!publisherId) {
-      setDashboardError('Your publisher ID is missing. Please sign out and sign in again.');
+      setDashboardError('Your publisher ID is missing. Please ensure you have a publisher profile set up. Contact support if this issue persists.');
       setDashboardData(null);
       return;
     }
@@ -158,9 +184,38 @@ export default function Dashboard() {
       const envelope = await fetchPublisherDashboard(publisherId, {
         period: selectedPeriod,
       });
-      setDashboardData((envelope?.data as PublisherDashboardPayload | null) ?? null);
+      
+      // Validate response structure
+      if (!envelope || !envelope.data) {
+        throw new Error('Invalid response from server. Please try again.');
+      }
+      
+      const data = envelope.data as PublisherDashboardPayload;
+      
+      // Debug: Log full response to identify data mismatches
+      console.log('=== PUBLISHER DASHBOARD API RESPONSE ===');
+      console.log('Full envelope:', JSON.stringify(envelope, null, 2));
+      console.log('Data object:', data);
+      console.log('Stats object:', data.stats);
+      if (data.stats) {
+        console.log('Individual stats:');
+        console.log('  totalPerformances:', data.stats.totalPerformances);
+        console.log('  totalEarnings:', data.stats.totalEarnings);
+        console.log('  worksInCatalog:', data.stats.worksInCatalog);
+        console.log('  activeStations:', data.stats.activeStations);
+      }
+      console.log('Other data:');
+      console.log('  playsOverTime length:', data.playsOverTime?.length || 0);
+      console.log('  topSongs length:', data.topSongs?.length || 0);
+      console.log('  topArtists length:', data.topArtists?.length || 0);
+      console.log('  recentActivity length:', data.recentActivity?.length || 0);
+      console.log('========================================');
+      
+      setDashboardData(data);
     } catch (error) {
-      setDashboardError(resolveErrorMessage(error));
+      const errorMessage = resolveErrorMessage(error);
+      console.error('Dashboard Error:', error);
+      setDashboardError(errorMessage);
       setDashboardData((previous) => previous ?? null);
     } finally {
       setIsLoadingDashboard(false);
@@ -384,15 +439,42 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {dashboardError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-          {dashboardError}
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900/40 dark:bg-red-950/30">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Dashboard Error</h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-400">
+                {dashboardError}
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={loadDashboard}
+                  className="text-sm font-medium text-red-800 hover:text-red-900 dark:text-red-300 dark:hover:text-red-200"
+                >
+                  Try Again →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       {isLoadingDashboard && !dashboardData && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
-          Loading publisher dashboard...
+          <div className="flex items-center">
+            <svg className="animate-spin h-5 w-5 mr-3 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading publisher dashboard for period: {selectedPeriod}...
+          </div>
         </div>
       )}
+
       {/* Publisher Dashboard Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -411,6 +493,7 @@ export default function Dashboard() {
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
+            <option value="all-time">All Time</option>
           </select>
         </div>
       </div>

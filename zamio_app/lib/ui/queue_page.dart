@@ -1,6 +1,5 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/audio_capture.dart';
 import '../services/database_service.dart';
 import '../services/sync_service.dart';
@@ -18,33 +17,45 @@ class _QueuePageState extends State<QueuePage> {
   final DatabaseService _db = DatabaseService();
   final SyncService _sync = SyncService();
   final ConnectivityService _connectivity = ConnectivityService();
+  
+  Timer? _debounceTimer;
+  bool _needsRefresh = false;
+  static const int _pageSize = 100; // Limit initial load
 
   @override
   void initState() {
     super.initState();
     _future = _loadQueue();
     
-    // Listen to sync service changes
+    // Listen to sync service changes with debouncing
     _sync.addListener(_onSyncChanged);
     _connectivity.addListener(_onConnectivityChanged);
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _sync.removeListener(_onSyncChanged);
     _connectivity.removeListener(_onConnectivityChanged);
     super.dispose();
   }
 
   void _onSyncChanged() {
-    if (mounted) {
-      setState(() {
-        _future = _loadQueue();
-      });
-    }
+    // Debounce rapid sync state changes to avoid excessive rebuilds
+    _needsRefresh = true;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && _needsRefresh) {
+        setState(() {
+          _future = _loadQueue();
+          _needsRefresh = false;
+        });
+      }
+    });
   }
 
   void _onConnectivityChanged() {
+    // Only rebuild for connectivity status, not the entire list
     if (mounted) {
       setState(() {});
     }
@@ -52,7 +63,8 @@ class _QueuePageState extends State<QueuePage> {
 
   Future<List<AudioCapture>> _loadQueue() async {
     try {
-      return await _db.getAllCaptures();
+      // Load with pagination for better performance
+      return await _db.getAllCaptures(limit: _pageSize);
     } catch (e) {
       debugPrint('Failed to load queue: $e');
       return [];
@@ -128,10 +140,13 @@ class _QueuePageState extends State<QueuePage> {
                           itemCount: captures.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 8),
                           padding: const EdgeInsets.all(12),
-                          itemBuilder: (context, i) => _CaptureCard(
-                            capture: captures[i],
-                            onRetry: _retryCapture,
-                            onDelete: _deleteCapture,
+                          itemBuilder: (context, i) => RepaintBoundary(
+                            child: _CaptureCard(
+                              key: ValueKey(captures[i].id),
+                              capture: captures[i],
+                              onRetry: _retryCapture,
+                              onDelete: _deleteCapture,
+                            ),
                           ),
                         ),
                 ),
@@ -354,6 +369,7 @@ class _CaptureCard extends StatelessWidget {
   final Function(String) onDelete;
   
   const _CaptureCard({
+    super.key,
     required this.capture,
     required this.onRetry,
     required this.onDelete,

@@ -11,24 +11,26 @@ import 'package:zamio/services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize core services
-  await _initializeServices();
+  // Initialize core services in parallel for faster startup
+  _initializeServicesAsync();
   
   runApp(const RadioSnifferApp());
 }
 
-Future<void> _initializeServices() async {
-  try {
-    // Initialize services in order of dependency
-    await ConnectivityService().initialize();
-    await NotificationService().initialize();
-    await SyncService().initialize();
-    
+void _initializeServicesAsync() {
+  // Initialize services asynchronously without blocking app startup
+  Future.wait([
+    ConnectivityService().initialize(),
+    NotificationService().initialize(),
+  ]).then((_) {
+    // Initialize sync service after connectivity is ready
+    return SyncService().initialize();
+  }).then((_) {
     debugPrint('All services initialized successfully');
-  } catch (e) {
+  }).catchError((e) {
     debugPrint('Service initialization failed: $e');
     // Continue anyway - app should still work with reduced functionality
-  }
+  });
 }
 
 class RadioSnifferApp extends StatelessWidget {

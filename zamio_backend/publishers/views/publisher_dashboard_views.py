@@ -398,12 +398,35 @@ def get_publisher_dashboard_view(request):
 
     total_performances = playlogs.count()
     total_earnings = playlogs.aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
+    
+    # Works in catalog should be ALL accepted agreements, not just those with plays
     works_in_catalog = agreements_qs.values('track_id').distinct().count()
+    
+    # Calculate previous catalog size for growth comparison
+    # Get agreements that existed before the current period
+    if start_date:
+        previous_catalog_size = agreements_qs.filter(
+            created_at__lt=start_date
+        ).values('track_id').distinct().count()
+    else:
+        previous_catalog_size = 0
+    
     active_stations = playlogs.values('station_id').distinct().count()
 
     previous_performances = previous_logs.count()
     previous_earnings = previous_logs.aggregate(total=Sum('royalty_amount'))['total'] or Decimal('0')
     previous_station_count = previous_logs.values('station_id').distinct().count()
+
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Publisher Dashboard Stats for {publisher.publisher_id}:")
+    logger.info(f"  - Total Performances: {total_performances} (change: {_calculate_growth(total_performances, previous_performances)}%)")
+    logger.info(f"  - Total Earnings: {total_earnings} (change: {_calculate_growth(total_earnings, previous_earnings)}%)")
+    logger.info(f"  - Works in Catalog: {works_in_catalog} (change: {_calculate_growth(works_in_catalog, previous_catalog_size)}%)")
+    logger.info(f"  - Active Stations: {active_stations} (change: {_calculate_growth(active_stations, previous_station_count)}%)")
+    logger.info(f"  - Total Agreements (accepted): {agreements_qs.count()}")
+    logger.info(f"  - Period: {period}, Start: {start_date}, End: {end_date}")
 
     stats = {
         'totalPerformances': {
@@ -416,7 +439,7 @@ def get_publisher_dashboard_view(request):
         },
         'worksInCatalog': {
             'value': works_in_catalog,
-            'change': _calculate_growth(works_in_catalog, agreements_qs.count()),
+            'change': _calculate_growth(works_in_catalog, previous_catalog_size),
         },
         'activeStations': {
             'value': active_stations,

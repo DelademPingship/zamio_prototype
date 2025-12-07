@@ -33,6 +33,7 @@ class DisputeViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
+    lookup_field = 'dispute_id'
     
     def get_queryset(self):
         user = self.request.user

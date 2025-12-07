@@ -2,245 +2,124 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
-  Edit,
-  Trash2,
   AlertTriangle,
   Building,
-  Globe,
-  Radio,
-  Tv,
   Music,
-  Mail,
-  Phone,
-  MapPin,
   Calendar,
   FileText,
-  TrendingUp,
-  Activity,
-  Settings,
-  Users,
-  DollarSign,
-  CheckCircle,
   Clock,
-  Eye,
-  Download,
   MessageSquare,
   User,
   Flag,
-  AlertCircle,
-  Check,
-  X,
-  ArrowRight,
-  UserPlus,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Upload,
+  Send,
+  Eye,
+  Download,
 } from 'lucide-react';
 import { Card } from '@zamio/ui';
-
-// Enhanced mock data for disputes
-const mockDisputes = [
-  {
-    id: 'dispute-attribution-001',
-    title: 'Incorrect Artist Attribution for "Ghana Love"',
-    description: 'Station reported incorrect artist attribution for track "Ghana Love" played on 2023-12-15 at 14:30. The system shows artist as "Unknown Artist" but station confirms it should be "Kojo Antwi".',
-    type: 'station_flagged',
-    category: 'attribution',
-    status: 'investigating',
-    priority: 'high',
-    stationId: 'station-radio-1',
-    stationName: 'Accra FM',
-    stationType: 'radio',
-    stationLocation: 'Accra, Ghana',
-    flaggedDate: '2023-12-15T10:30:00Z',
-    flaggedBy: 'station-user-1',
-    lastUpdated: '2023-12-16T14:20:00Z',
-    assignedTo: 'admin-user-1',
-    assignedDate: '2023-12-15T11:00:00Z',
-    estimatedImpact: 250.00,
-    evidence: [
-      {
-        id: 'evidence-audio-001',
-        type: 'audio',
-        title: 'Station Recording',
-        description: 'Audio recording from station showing the track play with DJ announcement',
-        fileUrl: '/evidence/audio/accra-fm-ghana-love-20231215.mp3',
-        uploadedBy: 'station-user-1',
-        uploadedDate: '2023-12-15T10:35:00Z',
-        size: 5242880
-      },
-      {
-        id: 'evidence-document-001',
-        type: 'document',
-        title: 'Playlist Log',
-        description: 'Station playlist log showing track details',
-        fileUrl: '/evidence/documents/accra-fm-playlist-20231215.pdf',
-        uploadedBy: 'station-user-1',
-        uploadedDate: '2023-12-15T10:40:00Z',
-        size: 1024000
-      }
-    ],
-    timeline: [
-      {
-        id: 'timeline-001',
-        type: 'status_change',
-        status: 'open',
-        timestamp: '2023-12-15T10:30:00Z',
-        user: 'station-user-1',
-        userName: 'Station Manager',
-        description: 'Dispute flagged by station'
-      },
-      {
-        id: 'timeline-002',
-        type: 'assignment',
-        status: 'investigating',
-        timestamp: '2023-12-15T11:00:00Z',
-        user: 'admin-user-1',
-        userName: 'Admin User',
-        description: 'Assigned to Admin User for investigation'
-      },
-      {
-        id: 'timeline-003',
-        type: 'evidence',
-        status: 'investigating',
-        timestamp: '2023-12-15T10:35:00Z',
-        user: 'station-user-1',
-        userName: 'Station Manager',
-        description: 'Evidence uploaded: Station Recording'
-      },
-      {
-        id: 'timeline-004',
-        type: 'note',
-        status: 'investigating',
-        timestamp: '2023-12-15T11:05:00Z',
-        user: 'admin-user-1',
-        userName: 'Admin User',
-        description: 'Investigating attribution claim. Need to verify track metadata.'
-      }
-    ],
-    notes: [
-      {
-        id: 'note-001',
-        author: 'admin-user-1',
-        authorName: 'Admin User',
-        content: 'Investigating attribution claim. Need to verify track metadata in database. Contacted content team for verification.',
-        timestamp: '2023-12-15T11:05:00Z',
-        type: 'investigation'
-      },
-      {
-        id: 'note-002',
-        author: 'station-user-1',
-        authorName: 'Station Manager',
-        content: 'Additional evidence uploaded showing DJ announcement clearly stating "Kojo Antwi - Ghana Love".',
-        timestamp: '2023-12-15T15:20:00Z',
-        type: 'evidence'
-      }
-    ],
-    relatedTracks: ['track-ghana-love-001']
-  },
-  {
-    id: 'dispute-payment-001',
-    title: 'Missing Royalty Payment for Q4 2023',
-    description: 'Station has not received expected royalty payment for Q4 2023 performances. Total expected: ₵1,250.00. Last payment received was for Q3 2023.',
-    type: 'station_flagged',
-    category: 'payment',
-    status: 'pending_info',
-    priority: 'high',
-    stationId: 'station-tv-1',
-    stationName: 'Ghana TV',
-    stationType: 'tv',
-    stationLocation: 'Accra, Ghana',
-    flaggedDate: '2023-12-20T09:15:00Z',
-    flaggedBy: 'station-user-2',
-    lastUpdated: '2023-12-20T16:45:00Z',
-    assignedTo: 'admin-user-2',
-    assignedDate: '2023-12-20T10:00:00Z',
-    estimatedImpact: 1250.00,
-    evidence: [
-      {
-        id: 'evidence-document-002',
-        type: 'document',
-        title: 'Payment Statement Q3',
-        description: 'Previous quarter payment statement for reference',
-        fileUrl: '/evidence/documents/ghana-tv-payment-q3-2023.pdf',
-        uploadedBy: 'station-user-2',
-        uploadedDate: '2023-12-20T09:20:00Z',
-        size: 2048000
-      }
-    ],
-    timeline: [
-      {
-        id: 'timeline-payment-001',
-        type: 'status_change',
-        status: 'open',
-        timestamp: '2023-12-20T09:15:00Z',
-        user: 'station-user-2',
-        userName: 'Finance Manager',
-        description: 'Payment dispute flagged by station'
-      },
-      {
-        id: 'timeline-payment-002',
-        type: 'assignment',
-        status: 'pending_info',
-        timestamp: '2023-12-20T10:00:00Z',
-        user: 'admin-user-2',
-        userName: 'Finance Admin',
-        description: 'Assigned to Finance Admin for investigation'
-      }
-    ],
-    notes: [
-      {
-        id: 'note-payment-001',
-        author: 'admin-user-2',
-        authorName: 'Finance Admin',
-        content: 'Payment records show Q4 payment was processed on 2023-12-18. Investigating potential bank delay or incorrect account details.',
-        timestamp: '2023-12-20T10:15:00Z',
-        type: 'investigation'
-      }
-    ]
-  }
-];
+import {
+  fetchDisputeDetail,
+  updateDisputeStatus,
+  assignDispute,
+  addDisputeComment,
+  addDisputeEvidence,
+  type DisputeDetail as DisputeDetailType,
+} from '../lib/api';
 
 const DisputeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [dispute, setDispute] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  
+  const [dispute, setDispute] = useState<DisputeDetailType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  
+  // Comment form
+  const [newComment, setNewComment] = useState('');
+  const [isInternalComment, setIsInternalComment] = useState(false);
+  const [commentLoading, setCommentLoading] = useState(false);
+  
+  // Status transition
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [statusReason, setStatusReason] = useState('');
 
   useEffect(() => {
-    // Find the dispute by id
-    const foundDispute = mockDisputes.find(d => d.id === id);
-    setDispute(foundDispute || null);
+    if (id) {
+      loadDisputeDetail();
+    }
   }, [id]);
 
-  if (!dispute) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Dispute Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">The requested dispute could not be found.</p>
-          <button
-            onClick={() => navigate('/disputes')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            Back to Disputes
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const loadDisputeDetail = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await fetchDisputeDetail(id);
+      setDispute(data);
+    } catch (err: any) {
+      console.error('Failed to load dispute:', err);
+      setError(err?.response?.data?.message || 'Failed to load dispute details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async () => {
+    if (!id || !selectedStatus) return;
+    
+    setActionLoading(true);
+    try {
+      const updated = await updateDisputeStatus(id, selectedStatus, statusReason);
+      setDispute(updated);
+      setShowStatusModal(false);
+      setSelectedStatus('');
+      setStatusReason('');
+    } catch (err: any) {
+      console.error('Failed to update status:', err);
+      alert(err?.response?.data?.message || 'Failed to update dispute status');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !newComment.trim()) return;
+    
+    setCommentLoading(true);
+    try {
+      await addDisputeComment(id, newComment, isInternalComment);
+      setNewComment('');
+      setIsInternalComment(false);
+      await loadDisputeDetail(); // Reload to get updated comments
+    } catch (err: any) {
+      console.error('Failed to add comment:', err);
+      alert(err?.response?.data?.message || 'Failed to add comment');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
+      case 'submitted':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
-      case 'investigating':
+      case 'under_review':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
-      case 'pending_info':
+      case 'evidence_required':
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
       case 'escalated':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
       case 'resolved':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-      case 'closed':
+      case 'rejected':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
@@ -249,6 +128,7 @@ const DisputeDetail = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
+      case 'urgent':
       case 'critical':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
       case 'high':
@@ -262,433 +142,448 @@ const DisputeDetail = () => {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'attribution':
-        return <Users className="w-5 h-5 text-blue-600" />;
-      case 'payment':
-        return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'data':
-        return <TrendingUp className="w-5 h-5 text-purple-600" />;
-      case 'technical':
-        return <AlertTriangle className="w-5 h-5 text-red-600" />;
-      default:
-        return <AlertCircle className="w-5 h-5 text-gray-600" />;
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
   };
 
-  const getStationIcon = (type: string) => {
-    switch (type) {
-      case 'radio':
-        return <Radio className="w-5 h-5 text-blue-600" />;
-      case 'tv':
-        return <Tv className="w-5 h-5 text-purple-600" />;
-      case 'streaming':
-        return <Music className="w-5 h-5 text-green-600" />;
-      case 'venue':
-        return <Building className="w-5 h-5 text-orange-600" />;
-      default:
-        return <Building className="w-5 h-5 text-gray-600" />;
-    }
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center space-x-3">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <span className="text-gray-600 dark:text-gray-400">Loading dispute details...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !dispute) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Card className="p-8 max-w-md">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-center text-red-600 dark:text-red-400 mb-4">
+            {error || 'Dispute not found'}
+          </p>
+          <button
+            onClick={() => navigate('/disputes')}
+            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Back to Disputes
+          </button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <main className="w-full px-6 py-8 min-h-screen">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-6">
+      {/* Header */}
+      <div className="mb-8">
+        <Link
+          to="/disputes"
+          className="inline-flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Disputes
+        </Link>
+        
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              {dispute.title}
+            </h1>
+            <div className="flex items-center space-x-4">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(dispute.status)}`}>
+                {dispute.status.replace('_', ' ').toUpperCase()}
+              </span>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getPriorityColor(dispute.priority)}`}>
+                {dispute.priority.toUpperCase()}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                ID: {dispute.dispute_id}
+              </span>
+            </div>
+          </div>
+          
+          {dispute.available_transitions && dispute.available_transitions.length > 0 && (
             <button
-              onClick={() => navigate('/disputes')}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              onClick={() => setShowStatusModal(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Disputes</span>
+              Change Status
             </button>
-          </div>
-
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex items-center space-x-6">
-              <div className={`w-20 h-20 rounded-lg flex items-center justify-center ${dispute.category === 'attribution' ? 'bg-blue-100 dark:bg-blue-900/20' : dispute.category === 'payment' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
-                {getCategoryIcon(dispute.category)}
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">{dispute.title}</h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">{dispute.description}</p>
-                <div className="flex items-center space-x-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(dispute.status)}`}>
-                    <span className="capitalize">{dispute.status.replace('_', ' ')}</span>
-                  </span>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${getPriorityColor(dispute.priority)}`}>
-                    <span className="capitalize">{dispute.priority} Priority</span>
-                  </span>
-                  <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
-                    {getStationIcon(dispute.stationType)}
-                    <span>{dispute.stationName} ({dispute.stationType})</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button className="px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-400 dark:to-purple-500 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center space-x-2">
-                <Edit className="w-4 h-4" />
-                <span>Update Status</span>
-              </button>
-              <button className="px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 dark:from-red-400 dark:to-red-500 text-white rounded-lg font-medium shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center space-x-2">
-                <Trash2 className="w-4 h-4" />
-                <span>Close Dispute</span>
-              </button>
-            </div>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="mb-8">
-          <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg">
-            {[
-              { id: 'overview', name: 'Overview', icon: AlertTriangle },
-              { id: 'timeline', name: 'Timeline', icon: Calendar },
-              { id: 'evidence', name: 'Evidence', icon: FileText },
-              { id: 'resolution', name: 'Resolution', icon: CheckCircle },
-              { id: 'notes', name: 'Notes', icon: MessageSquare },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span>{tab.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Description */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Description
+            </h2>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {dispute.description}
+            </p>
+          </Card>
 
-        {/* Tab Content */}
-        <div className="space-y-8">
-          {activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Dispute Information */}
-              <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Dispute Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Related Information */}
+          {(dispute.related_track || dispute.related_station) && (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Related Information
+              </h2>
+              <div className="space-y-4">
+                {dispute.related_track && (
+                  <div className="flex items-start space-x-3">
+                    <Music className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dispute ID</label>
-                      <p className="text-gray-900 dark:text-white font-semibold">{dispute.id}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
-                      <div className="flex items-center space-x-2">
-                        {getCategoryIcon(dispute.category)}
-                        <p className="text-gray-900 dark:text-white capitalize">{dispute.category}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Station</label>
-                      <div className="flex items-center space-x-2">
-                        {getStationIcon(dispute.stationType)}
-                        <p className="text-gray-900 dark:text-white">{dispute.stationName}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 dark:text-white">{dispute.stationLocation}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flagged Date</label>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <p className="text-gray-900 dark:text-white">{new Date(dispute.flaggedDate).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flagged By</label>
-                      <p className="text-gray-900 dark:text-white">{dispute.flaggedBy}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Assigned To</label>
-                      <p className="text-gray-900 dark:text-white">{dispute.assignedTo || 'Unassigned'}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Estimated Impact</label>
-                      <p className="text-gray-900 dark:text-white font-semibold">₵{dispute.estimatedImpact.toLocaleString()}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Track</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {dispute.related_track.title}
+                      </p>
+                      {dispute.related_track.artist && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          by {dispute.related_track.artist}
+                        </p>
+                      )}
                     </div>
                   </div>
-                </Card>
+                )}
+                
+                {dispute.related_station && (
+                  <div className="flex items-start space-x-3">
+                    <Building className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Station</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {dispute.related_station.name}
+                      </p>
+                      {dispute.related_station.location && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {dispute.related_station.location}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+            </Card>
+          )}
 
-              {/* Quick Actions & Stats */}
-              <div className="space-y-6">
-                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <button className="w-full px-4 py-3 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors text-sm font-medium flex items-center space-x-2">
-                      <UserPlus className="w-4 h-4" />
-                      <span>Reassign Dispute</span>
-                    </button>
-                    <button className="w-full px-4 py-3 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/30 transition-colors text-sm font-medium flex items-center space-x-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Escalate Dispute</span>
-                    </button>
-                    <button className="w-full px-4 py-3 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/30 transition-colors text-sm font-medium flex items-center space-x-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Mark as Resolved</span>
-                    </button>
+          {/* Evidence */}
+          {dispute.evidence && dispute.evidence.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Evidence ({dispute.evidence.length})
+              </h2>
+              <div className="space-y-3">
+                {dispute.evidence.map((evidence) => (
+                  <div
+                    key={evidence.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <FileText className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {evidence.title}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {evidence.description}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          {formatFileSize(evidence.file_size)} • {evidence.file_category} • 
+                          Uploaded by {evidence.uploaded_by.first_name} {evidence.uploaded_by.last_name}
+                        </p>
+                      </div>
+                    </div>
+                    {evidence.secure_url && (
+                      <a
+                        href={evidence.secure_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                      >
+                        <Download className="w-5 h-5" />
+                      </a>
+                    )}
                   </div>
-                </Card>
+                ))}
+              </div>
+            </Card>
+          )}
 
-                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Dispute Stats</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Evidence Files</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{dispute.evidence.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Notes</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{dispute.notes.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Timeline Events</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">{dispute.timeline.length}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 dark:text-gray-400">Days Open</span>
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {Math.floor((new Date().getTime() - new Date(dispute.flaggedDate).getTime()) / (1000 * 60 * 60 * 24))}
+          {/* Comments */}
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Comments ({dispute.comments?.length || 0})
+            </h2>
+            
+            {/* Add Comment Form */}
+            <form onSubmit={handleAddComment} className="mb-6">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment..."
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent resize-none"
+                rows={3}
+              />
+              <div className="flex items-center justify-between mt-2">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={isInternalComment}
+                    onChange={(e) => setIsInternalComment(e.target.checked)}
+                    className="rounded border-gray-300 dark:border-gray-600"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    Internal note (not visible to submitter)
+                  </span>
+                </label>
+                <button
+                  type="submit"
+                  disabled={!newComment.trim() || commentLoading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {commentLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>Post Comment</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Comments List */}
+            <div className="space-y-4">
+              {dispute.comments && dispute.comments.length > 0 ? (
+                dispute.comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className={`p-4 rounded-lg ${
+                      comment.is_internal
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+                        : 'bg-gray-50 dark:bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {comment.author.first_name} {comment.author.last_name}
+                        </span>
+                        {comment.is_internal && (
+                          <span className="text-xs px-2 py-0.5 bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 rounded">
+                            Internal
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(comment.created_at)}
                       </span>
                     </div>
+                    <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                      {comment.content}
+                    </p>
                   </div>
-                </Card>
-              </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  No comments yet
+                </p>
+              )}
             </div>
-          )}
+          </Card>
 
-          {activeTab === 'timeline' && (
-            <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Dispute Timeline</h3>
-              <div className="space-y-6">
-                {dispute.timeline.map((event: any, index: number) => (
-                  <div key={event.id} className="flex items-start space-x-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${event.type === 'status_change' ? 'bg-blue-100 dark:bg-blue-900/20' : event.type === 'assignment' ? 'bg-green-100 dark:bg-green-900/20' : event.type === 'evidence' ? 'bg-purple-100 dark:bg-purple-900/20' : 'bg-gray-100 dark:bg-gray-900/20'}`}>
-                      {event.type === 'status_change' && <ArrowRight className="w-5 h-5 text-blue-600" />}
-                      {event.type === 'assignment' && <User className="w-5 h-5 text-green-600" />}
-                      {event.type === 'evidence' && <FileText className="w-5 h-5 text-purple-600" />}
-                      {event.type === 'note' && <MessageSquare className="w-5 h-5 text-gray-600" />}
+          {/* Timeline */}
+          {dispute.audit_logs && dispute.audit_logs.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Activity Timeline
+              </h2>
+              <div className="space-y-4">
+                {dispute.audit_logs.map((log, index) => (
+                  <div key={log.id} className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-semibold text-gray-900 dark:text-white">{event.description}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(event.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        by {event.userName}
-                      </div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {log.description}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        by {log.actor.first_name} {log.actor.last_name} • {formatDate(log.timestamp)}
+                      </p>
+                      {log.previous_state && log.new_state && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          {log.previous_state} → {log.new_state}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}
-              </div>
-            </Card>
-          )}
-
-          {activeTab === 'evidence' && (
-            <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Evidence Files</h3>
-              <div className="space-y-4">
-                {dispute.evidence.map((evidence: any) => (
-                  <div key={evidence.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-200 dark:border-slate-600">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                        {evidence.type === 'audio' && <Music className="w-6 h-6 text-gray-600" />}
-                        {evidence.type === 'document' && <FileText className="w-6 h-6 text-gray-600" />}
-                        {evidence.type === 'screenshot' && <Eye className="w-6 h-6 text-gray-600" />}
-                        {evidence.type === 'log' && <FileText className="w-6 h-6 text-gray-600" />}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-gray-900 dark:text-white">{evidence.title}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">{evidence.description}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-500">
-                          Uploaded by {evidence.uploadedBy} on {new Date(evidence.uploadedDate).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors duration-200">
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {activeTab === 'resolution' && (
-            <div className="space-y-8">
-              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Resolution Workflow</h3>
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className={`p-4 rounded-lg border-2 ${dispute.status === 'investigating' ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20' : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'}`}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className={`w-3 h-3 rounded-full ${dispute.status === 'investigating' ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                        <span className="font-semibold text-gray-900 dark:text-white">Investigating</span>
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {dispute.assignedTo ? `Assigned to ${dispute.assignedTo}` : 'Not assigned'}
-                      </div>
-                    </div>
-                    <div className={`p-4 rounded-lg border-2 ${dispute.status === 'pending_info' ? 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20' : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'}`}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className={`w-3 h-3 rounded-full ${dispute.status === 'pending_info' ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
-                        <span className="font-semibold text-gray-900 dark:text-white">Pending Info</span>
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Waiting for additional information
-                      </div>
-                    </div>
-                    <div className={`p-4 rounded-lg border-2 ${dispute.status === 'resolved' ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50'}`}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className={`w-3 h-3 rounded-full ${dispute.status === 'resolved' ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="font-semibold text-gray-900 dark:text-white">Resolved</span>
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Issue resolved and closed
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Assignment Section */}
-                  <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Assignment Management</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Assignee</label>
-                        <select className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400">
-                          <option value="">Select Assignee</option>
-                          <option value="admin-user-1">Admin User</option>
-                          <option value="admin-user-2">Finance Admin</option>
-                          <option value="admin-user-3">Senior Admin</option>
-                          <option value="admin-user-4">Tech Admin</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Escalation Level</label>
-                        <select className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400">
-                          <option value="standard">Standard</option>
-                          <option value="escalated">Escalated</option>
-                          <option value="legal">Legal Review</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex space-x-3">
-                      <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                        Update Assignment
-                      </button>
-                      <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-                        Escalate Dispute
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Resolution Actions */}
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resolution Actions</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <button className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
-                        <CheckCircle className="w-5 h-5" />
-                        <span>Mark as Resolved</span>
-                      </button>
-                      <button className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2">
-                        <X className="w-5 h-5" />
-                        <span>Close Dispute</span>
-                      </button>
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Resolution Notes</label>
-                      <textarea
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                        rows={3}
-                        placeholder="Add resolution details and outcome..."
-                      ></textarea>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Outcome Tracking */}
-              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Outcome Tracking</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {Math.floor((new Date().getTime() - new Date(dispute.flaggedDate).getTime()) / (1000 * 60 * 60 * 24))}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Days Open</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {dispute.timeline.length}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Timeline Events</div>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      ₵{dispute.estimatedImpact.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Estimated Impact</div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {activeTab === 'notes' && (
-            <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/30 p-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Communication Log</h3>
-              <div className="space-y-4">
-                {dispute.notes.map((note: any) => (
-                  <div key={note.id} className="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
-                    <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-semibold text-gray-900 dark:text-white">{note.authorName}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(note.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                      <p className="text-gray-700 dark:text-gray-300">{note.content}</p>
-                    </div>
-                  </div>
-                ))}
-                <div className="mt-6 p-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg">
-                  <div className="text-center">
-                    <MessageSquare className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500 dark:text-gray-400 mb-2">Add a note to this dispute</p>
-                    <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                      Add Note
-                    </button>
-                  </div>
-                </div>
               </div>
             </Card>
           )}
         </div>
-      </main>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Details Card */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Details
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
+                <p className="font-medium text-gray-900 dark:text-white capitalize">
+                  {dispute.dispute_type.replace('_', ' ')}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Submitted By</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {dispute.submitted_by.first_name} {dispute.submitted_by.last_name}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {dispute.submitted_by.email}
+                </p>
+              </div>
+              
+              {dispute.assigned_to && (
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Assigned To</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {dispute.assigned_to.first_name} {dispute.assigned_to.last_name}
+                  </p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Created</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {formatDate(dispute.created_at)}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {formatDate(dispute.updated_at)}
+                </p>
+              </div>
+              
+              {dispute.resolved_at && (
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Resolved</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {formatDate(dispute.resolved_at)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Resolution */}
+          {dispute.resolution_summary && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Resolution
+              </h2>
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                {dispute.resolution_summary}
+              </p>
+              {dispute.resolution_action_taken && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Action Taken</p>
+                  <p className="text-gray-700 dark:text-gray-300">
+                    {dispute.resolution_action_taken}
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Status Change Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              Change Dispute Status
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  New Status
+                </label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select status...</option>
+                  {dispute.available_transitions?.map((status) => (
+                    <option key={status} value={status}>
+                      {status.replace('_', ' ').toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Reason (optional)
+                </label>
+                <textarea
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  placeholder="Provide a reason for this status change..."
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowStatusModal(false);
+                    setSelectedStatus('');
+                    setStatusReason('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleStatusChange}
+                  disabled={!selectedStatus || actionLoading}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading ? 'Updating...' : 'Update Status'}
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+    </main>
   );
 };
 

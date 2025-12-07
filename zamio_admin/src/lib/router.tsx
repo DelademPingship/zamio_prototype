@@ -66,6 +66,8 @@ import PlayLogs from '../pages/PlayLogs';
 import WithdrawalApprovals from '../pages/WithdrawalApprovals';
 import StationBalances from '../pages/StationBalances';
 import StationDeposits from '../pages/StationDeposits';
+import Stations from '../pages/Stations';
+import StationDetail from '../pages/StationDetail';
 import NotFound from '../pages/NotFound';
 import Layout from '../components/Layout';
 
@@ -125,6 +127,8 @@ const router = createBrowserRouter([
           { path: 'user-management', element: <UserManagement /> },
           { path: 'user-management/add', element: <AddUser /> },
           { path: 'user-management/:id', element: <UserDetail /> },
+          { path: 'stations', element: <Stations /> },
+          { path: 'station/:id', element: <StationDetail /> },
           { path: 'partners', element: <Partners /> },
           { path: 'partners/:type/:id', element: <PartnerDetail /> },
           { path: 'agreements', element: <Agreements /> },

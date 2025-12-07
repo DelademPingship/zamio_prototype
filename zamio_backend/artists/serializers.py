@@ -219,7 +219,11 @@ class PlatformAvailabilitySerializer(serializers.ModelSerializer):
 
 
 
-class ArtistPlayLogSerializer(serializers.ModelSerializer):
+class BasePlayLogSerializer(serializers.ModelSerializer):
+    """
+    Base serializer with consistent status logic for all portals.
+    Provides common fields and methods for PlayLog serialization.
+    """
     track_title = serializers.CharField(source='track.title', read_only=True)
     station_name = serializers.CharField(source='station.name', read_only=True)
     artist = serializers.SerializerMethodField()
@@ -293,11 +297,31 @@ class ArtistPlayLogSerializer(serializers.ModelSerializer):
         return float(obj.royalty_amount)
 
     def get_status(self, obj):
-        if getattr(obj, 'flagged', False):
-            return 'Flagged'
-        if getattr(obj, 'claimed', False):
-            return 'Confirmed'
+        """
+        Unified status logic based on verification_status field.
+        Returns user-friendly status labels.
+        """
+        # Check for disputes first
+        if obj.flagged or obj.verification_status == 'disputed':
+            return 'Disputed'
+        
+        # Check verification status
+        if obj.verification_status == 'rejected':
+            return 'Rejected'
+        
+        if obj.verification_status == 'verified':
+            return 'Verified'
+        
+        # Pending review
         return 'Pending'
+
+
+class ArtistPlayLogSerializer(BasePlayLogSerializer):
+    """
+    Artist-specific PlayLog serializer.
+    Shows verification status from artist perspective.
+    """
+    pass
 
     def get_attribution_source(self, obj):
         try:

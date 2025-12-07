@@ -81,10 +81,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       name: 'Stations',
       id: 'stations',
       icon: Radio,
-      current: location.pathname === '/dashboard' && activeTab === 'stations',
+      current: location.pathname === '/stations',
       description: 'Station management and monitoring',
-      isRoute: false,
-      onClick: () => onTabChange?.('stations'),
+      link: '/stations',
+      isRoute: true,
     },
     {
       name: 'Disputes',

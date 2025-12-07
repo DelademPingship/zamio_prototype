@@ -318,20 +318,34 @@ class PublisherPlayLogSerializer(serializers.ModelSerializer):
             return 0.0
 
     def get_status(self, obj):
+        """
+        Unified status logic based on verification_status field.
+        Returns user-friendly status labels.
+        """
         try:
-            if getattr(obj, 'flagged', False):
+            # Check for disputes first
+            if obj.flagged or obj.verification_status == 'disputed':
                 return 'Disputed'
+            
+            # Check for open disputes
             open_dispute = Dispute.objects.filter(
                 playlog=obj,
                 is_archived=False,
             ).exclude(dispute_status__iexact='resolved').exists()
             if open_dispute:
                 return 'Pending'
-            if getattr(obj, 'claimed', False):
+            
+            # Check verification status
+            if obj.verification_status == 'rejected':
+                return 'Rejected'
+            
+            if obj.verification_status == 'verified':
                 return 'Confirmed'
+            
+            # Pending review
+            return 'Pending'
         except Exception:
             return 'Pending'
-        return 'Confirmed'
 
     def get_license_type(self, obj):
         source = (obj.source or '').lower()

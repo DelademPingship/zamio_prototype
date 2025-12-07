@@ -1,5 +1,6 @@
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.db.models import Q
+from django.db.models import Q, Count, Sum, Avg
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
@@ -84,6 +85,44 @@ def flag_match_for_dispute(request):
 
     playlog.flagged = True
     playlog.save(update_fields=['flagged', 'updated_at'])
+
+    # Create or update formal dispute record for admin panel
+    from disputes.models import Dispute as FormalDispute, DisputeType, DisputeStatus, DisputePriority
+    
+    # Determine dispute type based on context
+    dispute_type = DisputeType.DETECTION_ACCURACY
+    
+    # Create title from playlog info
+    track_title = playlog.track.title if playlog.track else "Unknown Track"
+    station_name = playlog.station.name if playlog.station else "Unknown Station"
+    title = f"Play Log Dispute: {track_title} on {station_name}"
+    
+    # Check if formal dispute already exists for this playlog
+    formal_dispute, formal_created = FormalDispute.objects.get_or_create(
+        related_detection=None,  # Could link to AudioDetection if available
+        related_track=playlog.track if playlog.track else None,
+        related_station=playlog.station if playlog.station else None,
+        submitted_by=request.user,
+        defaults={
+            'title': title,
+            'description': normalized_comment,
+            'dispute_type': dispute_type,
+            'status': DisputeStatus.SUBMITTED,
+            'priority': DisputePriority.MEDIUM,
+            'metadata': {
+                'playlog_id': playlog.id,
+                'old_dispute_id': dispute.id,
+                'flagged_from': 'station_playlog',
+            }
+        }
+    )
+    
+    if not formal_created:
+        # Update existing formal dispute
+        formal_dispute.description = normalized_comment
+        formal_dispute.status = DisputeStatus.SUBMITTED
+        formal_dispute.metadata['old_dispute_id'] = dispute.id
+        formal_dispute.save(update_fields=['description', 'status', 'metadata', 'updated_at'])
 
     serializer = DisputeSerializer(dispute)
     payload['message'] = 'Successful'
@@ -573,6 +612,7 @@ def review_match_for_dispute(request):
     # Update dispute status and clear the PlayLog flagged state
     dispute.dispute_status = "Resolved"
     dispute.resolve_comments = comment
+    dispute.verified_at = timezone.now()
     dispute.save()
 
     try:
@@ -583,6 +623,24 @@ def review_match_for_dispute(request):
     except Exception:
         # Non-fatal: if we fail to update the playlog flag, still return success for dispute
         pass
+
+    # Update formal dispute if it exists
+    from disputes.models import Dispute as FormalDispute, DisputeStatus
+    try:
+        formal_dispute = FormalDispute.objects.filter(
+            metadata__old_dispute_id=dispute.id
+        ).first()
+        
+        if formal_dispute:
+            formal_dispute.status = DisputeStatus.RESOLVED
+            formal_dispute.resolution_summary = comment
+            formal_dispute.resolved_at = timezone.now()
+            formal_dispute.save(update_fields=['status', 'resolution_summary', 'resolved_at', 'updated_at'])
+    except Exception as e:
+        # Non-fatal: log but don't fail the request
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Failed to update formal dispute for old dispute {dispute.id}: {str(e)}")
 
     serializer = DisputeSerializer(dispute)
     payload['message'] = 'Successful'

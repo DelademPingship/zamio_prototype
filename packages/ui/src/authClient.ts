@@ -96,15 +96,6 @@ authApi.interceptors.request.use((config) => {
     const isJWT = token.includes('.');
     const authHeader = isJWT ? `Bearer ${token}` : `Token ${token}`;
     config.headers.Authorization = authHeader;
-    
-    // Debug logging
-    console.log('[Auth Debug] Request to:', config.url);
-    console.log('[Auth Debug] Token exists:', !!token);
-    console.log('[Auth Debug] Token type:', isJWT ? 'JWT' : 'Django Token');
-    console.log('[Auth Debug] Token preview:', token ? token.substring(0, 20) + '...' : 'none');
-    console.log('[Auth Debug] Auth header:', authHeader.substring(0, 30) + '...');
-  } else {
-    console.log('[Auth Debug] No token found for request to:', config.url);
   }
   return config;
 });
@@ -117,15 +108,34 @@ authApi.interceptors.response.use(
 
     if (response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      try {
-        const newAccessToken = await refreshAuthToken();
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      
+      // Check if we have a refresh token (JWT) or Django Token (no refresh)
+      const refreshToken = getRefreshToken();
+      const accessToken = getAccessToken();
+      const isDjangoToken = accessToken && !accessToken.includes('.');
+      
+      // Only attempt refresh if we have a refresh token (JWT flow)
+      if (refreshToken && !isDjangoToken) {
+        try {
+          const newAccessToken = await refreshAuthToken();
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          }
+          return authApi(originalRequest);
+        } catch (refreshError) {
+          clearTokens();
+          // Redirect to login page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/signin';
+          }
+          return Promise.reject(refreshError);
         }
-        return authApi(originalRequest);
-      } catch (refreshError) {
+      } else {
+        // Django Token expired or no refresh token - clear and redirect
         clearTokens();
-        return Promise.reject(refreshError);
+        if (typeof window !== 'undefined') {
+          window.location.href = '/signin';
+        }
       }
     }
 

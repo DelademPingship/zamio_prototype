@@ -170,11 +170,12 @@ export default function Layout() {
                 <NavLink
                   key={item.name}
                   to={item.href}
+                  end={item.href === '/dashboard'}
                   className={({ isActive }) => `${
                     isActive
                       ? 'bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/50 dark:to-purple-900/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 shadow-sm'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white border-transparent'
-                  } group flex items-center px-3 py-3 text-sm font-medium rounded-xl border transition-all duration-200 ${sidebarCollapsed ? 'justify-center' : ''}`}
+                  } group flex items-start px-3 py-2.5 text-sm font-medium rounded-xl border transition-all duration-200 ${sidebarCollapsed ? 'justify-center items-center' : ''}`}
                   title={sidebarCollapsed ? item.name : undefined}
                 >
                   {({ isActive }) => (
@@ -183,11 +184,11 @@ export default function Layout() {
                         isActive
                           ? 'text-blue-600 dark:text-blue-400'
                           : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'
-                      } w-5 h-5 ${sidebarCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
+                      } w-5 h-5 ${sidebarCollapsed ? '' : 'mr-3 mt-0.5'} flex-shrink-0`} />
                       {!sidebarCollapsed && (
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          <div className="font-medium leading-tight">{item.name}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5 leading-tight">
                             {item.description}
                           </div>
                         </div>

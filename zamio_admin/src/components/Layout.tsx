@@ -39,6 +39,8 @@ export default function Layout() {
 
     const routeMappings: Array<[string, string]> = [
       ['/user-management', 'users'],
+      ['/station/', 'stations'],
+      ['/stations', 'stations'],
       ['/partners', 'partners'],
       ['/agreements', 'partners'],
       ['/disputes', 'disputes'],

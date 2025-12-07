@@ -23,10 +23,11 @@ class SyncService extends ChangeNotifier {
   bool _isInitialized = false;
   
   // Sync configuration
-  Duration _syncInterval = const Duration(minutes: 2);
+  Duration _syncInterval = const Duration(minutes: 5); // Increased from 2 to 5 minutes
   int _maxConcurrentUploads = 3;
   int _maxRetryAttempts = 3;
-  Duration _retryDelay = const Duration(seconds: 30);
+  int _consecutiveEmptySyncs = 0;
+  static const int _maxEmptySyncsBeforeBackoff = 3;
   
   // Current sync state
   List<String> _currentlyUploading = [];
@@ -80,6 +81,7 @@ class SyncService extends ChangeNotifier {
     }
   }
 
+  @override
   void dispose() {
     _syncTimer?.cancel();
     _connectivity.removeListener(_onConnectivityChanged);
@@ -87,11 +89,17 @@ class SyncService extends ChangeNotifier {
     super.dispose();
   }
 
+  Timer? _connectivityDebounceTimer;
+  
   void _onConnectivityChanged() {
-    if (_connectivity.isConnected && !_isSyncing) {
-      debugPrint('Connectivity restored, starting sync...');
-      unawaited(_performSync());
-    }
+    // Debounce connectivity changes to avoid rapid sync attempts
+    _connectivityDebounceTimer?.cancel();
+    _connectivityDebounceTimer = Timer(const Duration(seconds: 2), () {
+      if (_connectivity.isConnected && !_isSyncing) {
+        debugPrint('Connectivity restored, starting sync...');
+        unawaited(_performSync());
+      }
+    });
   }
 
   void _startPeriodicSync() {
@@ -120,7 +128,25 @@ class SyncService extends ChangeNotifier {
       if (pendingCaptures.isEmpty) {
         debugPrint('No pending captures to sync');
         _lastSuccessfulSync = DateTime.now();
+        _consecutiveEmptySyncs++;
+        
+        // Implement exponential backoff when queue is empty
+        if (_consecutiveEmptySyncs >= _maxEmptySyncsBeforeBackoff) {
+          final backoffInterval = Duration(
+            minutes: (_syncInterval.inMinutes * 2).clamp(5, 30),
+          );
+          debugPrint('Queue empty for $_consecutiveEmptySyncs syncs, backing off to $backoffInterval');
+          _syncInterval = backoffInterval;
+          _startPeriodicSync();
+        }
         return;
+      }
+      
+      // Reset backoff when we have work to do
+      if (_consecutiveEmptySyncs > 0) {
+        _consecutiveEmptySyncs = 0;
+        _syncInterval = const Duration(minutes: 5);
+        _startPeriodicSync();
       }
 
       debugPrint('Starting sync of ${pendingCaptures.length} captures');
@@ -165,6 +191,9 @@ class SyncService extends ChangeNotifier {
       final futures = batch.map((capture) => _uploadCapture(capture)).toList();
       await Future.wait(futures, eagerError: false);
       
+      // Notify listeners once per batch instead of per upload
+      notifyListeners();
+      
       // Small delay between batches to be nice to the server
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -187,7 +216,7 @@ class SyncService extends ChangeNotifier {
       _uploadProgress[capture.id] = _uploadProgress[capture.id]!.copyWith(
         status: UploadStatus.uploading,
       );
-      notifyListeners();
+      // Removed notifyListeners() here to reduce UI updates during batch processing
       
       // Perform the upload
       final success = await _performUpload(capture);
@@ -213,6 +242,7 @@ class SyncService extends ChangeNotifier {
       await _handleUploadFailure(capture, error: e.toString());
     } finally {
       _currentlyUploading.remove(capture.id);
+      // Only notify after upload completes to batch UI updates
       notifyListeners();
     }
   }

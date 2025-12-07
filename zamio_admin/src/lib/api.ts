@@ -128,13 +128,15 @@ export const loginAdmin = async (payload: AdminLoginPayload) => {
 
   const { data } = await authApi.post<AdminLoginResponse>('/api/accounts/login-admin/', loginPayload);
   
-  // Transform Django Token to match expected format
+  // Store the Django Token (not JWT) - authApi interceptor will detect it and use "Token" header
+  // The backend returns both 'token' (Django Token) and 'access_token' (JWT)
+  // We use the Django Token because station endpoints use TokenAuthentication
   if (data.data && data.data.token) {
     const transformedData = {
       ...data,
       data: {
         ...data.data,
-        access_token: data.data.token, // Map token to access_token
+        access_token: data.data.token, // Use Django Token (no dots, so interceptor uses "Token" header)
       },
     };
     return transformedData;
@@ -481,6 +483,303 @@ export const bulkUserOperations = async (payload: BulkUserOperationsPayload) => 
   const { data } = await authApi.post<ApiEnvelope<Record<string, unknown>>>(
     '/api/accounts/admin/bulk-user-operations/',
     payload
+  );
+  return data;
+};
+
+// Station Management API
+
+export interface Station {
+  id: number;
+  station_id: string;
+  name: string;
+  region: string;
+  country: string;
+  frequency: string;
+  verification_status: string;
+  is_active: boolean;
+  created_at: string;
+  total_plays?: number;
+  balance?: number;
+}
+
+export interface StationListResponse {
+  stations: Station[];
+  pagination?: {
+    page_number: number;
+    per_page: number;
+    total_pages: number;
+    total_count: number;
+  };
+}
+
+export interface StationListParams {
+  page?: number;
+  search?: string;
+}
+
+export const fetchAllStations = async (params: StationListParams = {}) => {
+  const { data } = await authApi.get<ApiEnvelope<StationListResponse>>(
+    '/api/stations/get-all-stations/',
+    { params }
+  );
+  return data;
+};
+
+export interface StationDetailResponse {
+  id: number;
+  station_id: string;
+  name: string;
+  photo: string | null;
+  cover_image: string | null;
+  tagline: string | null;
+  founded_year: number | null;
+  primary_contact_name: string | null;
+  primary_contact_title: string | null;
+  primary_contact_email: string | null;
+  primary_contact_phone: string | null;
+  phone: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  station_class: string;
+  station_type: string;
+  license_number: string | null;
+  license_issuing_authority: string | null;
+  license_issue_date: string | null;
+  license_expiry_date: string | null;
+  coverage_area: string | null;
+  estimated_listeners: number | null;
+  station_category: string | null;
+  regulatory_body: string | null;
+  compliance_contact_name: string | null;
+  compliance_contact_email: string | null;
+  compliance_contact_phone: string | null;
+  emergency_contact_phone: string | null;
+  operating_hours_start: string | null;
+  operating_hours_end: string | null;
+  timezone: string;
+  website_url: string | null;
+  social_media_links: Record<string, string>;
+  broadcast_frequency: string | null;
+  transmission_power: string | null;
+  stream_url: string | null;
+  backup_stream_url: string | null;
+  stream_type: string | null;
+  stream_bitrate: string | null;
+  stream_format: string | null;
+  stream_mount_point: string | null;
+  monitoring_enabled: boolean;
+  monitoring_interval_seconds: number;
+  stream_auto_restart: boolean;
+  stream_quality_check_enabled: boolean;
+  stream_status: string;
+  stream_status_display: string;
+  last_monitored: string | null;
+  stream_validation_errors: string | null;
+  verification_status: string;
+  verified_by: number | null;
+  verified_at: string | null;
+  verification_notes: string | null;
+  bank_account: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  bank_branch_code: string | null;
+  bank_swift_code: string | null;
+  momo_account: string | null;
+  momo_provider: string | null;
+  momo_account_name: string | null;
+  bio: string | null;
+  location_name: string | null;
+  lat: string | null;
+  lng: string | null;
+  avg_detection_confidence: string | null;
+  about: string | null;
+  onboarding_step: string;
+  profile_completed: boolean;
+  stream_setup_completed: boolean;
+  staff_completed: boolean;
+  compliance_completed: boolean;
+  report_completed: boolean;
+  payment_info_added: boolean;
+  preferred_payout_method: string | null;
+  preferred_currency: string;
+  payout_frequency: string;
+  minimum_payout_amount: string | null;
+  tax_identification_number: string | null;
+  business_registration_number: string | null;
+  is_archived: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  staff_count: number;
+  stream_links_count: number;
+  user: number;
+}
+
+export const fetchStationDetails = async (stationId: string) => {
+  const { data } = await authApi.get<ApiEnvelope<StationDetailResponse>>(
+    '/api/stations/get-station-details/',
+    { params: { station_id: stationId } }
+  );
+  return data;
+};
+
+// Disputes API
+export interface UserBasic {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  user_type: string;
+}
+
+export interface Dispute {
+  dispute_id: string;
+  title: string;
+  dispute_type: string;
+  status: string;
+  priority: string;
+  submitted_by: UserBasic;
+  assigned_to?: UserBasic | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string | null;
+  evidence_count: number;
+  comments_count: number;
+  days_open: number;
+}
+
+export interface DisputesListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Dispute[];
+}
+
+export interface DisputesParams {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  priority?: string;
+  dispute_type?: string;
+  search?: string;
+  ordering?: string;
+}
+
+export const fetchDisputes = async (params: DisputesParams = {}) => {
+  const { data } = await authApi.get<DisputesListResponse>(
+    '/api/disputes/api/disputes/',
+    { params }
+  );
+  return data;
+};
+
+export interface DisputeEvidence {
+  id: number;
+  title: string;
+  description: string;
+  file_type: string;
+  file_size: number;
+  file_category: string;
+  uploaded_by: UserBasic;
+  uploaded_at: string;
+  secure_url: string | null;
+}
+
+export interface DisputeComment {
+  id: number;
+  content: string;
+  is_internal: boolean;
+  author: UserBasic;
+  created_at: string;
+  updated_at: string;
+  replies: DisputeComment[];
+}
+
+export interface DisputeAuditLog {
+  id: number;
+  action: string;
+  description: string;
+  previous_state: string;
+  new_state: string;
+  actor: UserBasic;
+  timestamp: string;
+}
+
+export interface DisputeDetail {
+  dispute_id: string;
+  title: string;
+  description: string;
+  dispute_type: string;
+  status: string;
+  priority: string;
+  submitted_by: UserBasic;
+  assigned_to: UserBasic | null;
+  related_track: {
+    id: number;
+    title: string;
+    artist: string | null;
+  } | null;
+  related_station: {
+    id: number;
+    name: string;
+    location: string | null;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  resolution_summary: string;
+  resolution_action_taken: string;
+  metadata: Record<string, any>;
+  evidence: DisputeEvidence[];
+  comments: DisputeComment[];
+  audit_logs: DisputeAuditLog[];
+  available_transitions: string[];
+  timeline: any[];
+}
+
+export const fetchDisputeDetail = async (disputeId: string) => {
+  const { data } = await authApi.get<DisputeDetail>(
+    `/api/disputes/api/disputes/${disputeId}/`
+  );
+  return data;
+};
+
+export const updateDisputeStatus = async (disputeId: string, newStatus: string, reason?: string) => {
+  const { data } = await authApi.post<DisputeDetail>(
+    `/api/disputes/api/disputes/${disputeId}/transition_status/`,
+    { new_status: newStatus, reason, notify: true }
+  );
+  return data;
+};
+
+export const assignDispute = async (disputeId: string, assigneeId: string, reason?: string) => {
+  const { data } = await authApi.post<DisputeDetail>(
+    `/api/disputes/api/disputes/${disputeId}/assign/`,
+    { assignee_id: assigneeId, reason }
+  );
+  return data;
+};
+
+export const addDisputeComment = async (disputeId: string, content: string, isInternal: boolean = false) => {
+  const { data } = await authApi.post<DisputeComment>(
+    `/api/disputes/api/disputes/${disputeId}/add_comment/`,
+    { content, is_internal: isInternal }
+  );
+  return data;
+};
+
+export const addDisputeEvidence = async (disputeId: string, formData: FormData) => {
+  const { data } = await authApi.post<DisputeEvidence>(
+    `/api/disputes/api/disputes/${disputeId}/add_evidence/`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
   );
   return data;
 };

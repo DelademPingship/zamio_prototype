@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_sound:
   path_provider:
+  path:
   permission_handler:
   http:
   flutter_foreground_task: ^6.1.3

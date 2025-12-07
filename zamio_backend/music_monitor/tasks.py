@@ -1062,6 +1062,10 @@ def run_matchcache_to_playlog(batch_size: int = 50) -> Dict[str, Any]:
                         processed_count += 1
                         continue
                     
+                    # Determine verification status based on confidence score
+                    confidence = float(match.avg_confidence_score or 0)
+                    verification_status = 'verified' if confidence >= 70.0 else 'pending'
+                    
                     # Create new PlayLog entry
                     playlog = PlayLog.objects.create(
                         track=match.track,
@@ -1078,11 +1082,19 @@ def run_matchcache_to_playlog(batch_size: int = 50) -> Dict[str, Any]:
                             seconds=getattr(match.track, 'duration_seconds', 180)
                         ),
                         avg_confidence_score=match.avg_confidence_score,
-                        claimed=False,
+                        verification_status=verification_status,
+                        payment_status='pending',
+                        royalty_status='pending',
+                        claimed=True,  # Legacy field - kept for backward compatibility
                         flagged=False,
                         active=True,
                         is_archived=False
                     )
+                    
+                    # Update match status
+                    match.status = 'processed'
+                    match.processed = True
+                    match.save(update_fields=['status', 'processed'])
                     
                     # Calculate basic royalty amount (this could be enhanced with more complex logic)
                     base_royalty_rate = 0.10  # 10 pesewas per play as base rate

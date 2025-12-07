@@ -107,7 +107,7 @@ def get_all_stations_view(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([TokenAuthentication, CustomJWTAuthentication])
 def get_station_details_view(request):
     payload = {}
     errors = {}

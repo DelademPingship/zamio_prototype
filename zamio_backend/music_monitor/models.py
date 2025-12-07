@@ -12,55 +12,182 @@ from stations.models import Station, StationProgram
 User = get_user_model()
 
 class MatchCache(models.Model):
+    """
+    Temporary storage for audio fingerprint matches before conversion to PlayLog.
+    Represents the detection layer - raw matches from audio fingerprinting.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Processing'),
+        ('verified', 'Verified Match'),
+        ('processed', 'Converted to PlayLog'),
+        ('failed', 'Failed to Process'),
+        ('low_confidence', 'Low Confidence - Needs Review'),
+    ]
+    
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name="match_track", null=True, blank=True)
     station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name="match_station")
     station_program = models.ForeignKey(StationProgram, null=True, blank=True, on_delete=models.SET_NULL,  related_name="match_station_program")
 
     matched_at = models.DateTimeField(auto_now_add=True)
     avg_confidence_score = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    processed = models.BooleanField(default=False)
-    failed_reason = models.TextField(null=True, blank=True)  # NEW field
+    
+    # Status tracking
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    processed = models.BooleanField(default=False)  # Kept for backward compatibility
+    failed_reason = models.TextField(null=True, blank=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['station', 'matched_at']),
+            models.Index(fields=['status', 'processed']),
+        ]
+    
+    def __str__(self):
+        track_title = self.track.title if self.track else 'Unknown'
+        return f"Match: {track_title} on {self.station.name} ({self.status})"
 
 
     
 
 
 class PlayLog(models.Model):
+    """
+    Confirmed music plays for royalty calculation.
+    Represents the business layer - verified plays that generate royalties.
+    """
+    # Core relationships
     track = models.ForeignKey(Track, on_delete=models.CASCADE, related_name="track_playlog")
     station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name="station_playlog")
     station_program = models.ForeignKey(StationProgram, on_delete=models.CASCADE, related_name="station_program_playlog", null=True, blank=True)
     
     source = models.CharField(max_length=50, choices=[('Radio', 'Radio'), ('Streaming', 'Streaming')])
 
+    # Timing information
     played_at = models.DateTimeField(null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     stop_time = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
     
+    # Financial tracking
     royalty_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     avg_confidence_score = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    claimed = models.BooleanField(default=False)
-
+    
+    # Verification status (artist/publisher perspective)
+    VERIFICATION_STATUS_CHOICES = [
+        ('verified', 'Verified'),           # Confirmed match, good confidence
+        ('pending', 'Pending Review'),      # Low confidence or needs manual review
+        ('disputed', 'Disputed'),           # Has active dispute
+        ('rejected', 'Rejected'),           # Failed verification or dispute resolved against
+    ]
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VERIFICATION_STATUS_CHOICES,
+        default='verified',
+        help_text='Verification status of the match (artist/publisher perspective)'
+    )
+    
+    # Legacy field - kept for backward compatibility, will be deprecated
+    claimed = models.BooleanField(default=True, help_text='DEPRECATED: Use verification_status instead')
     flagged = models.BooleanField(default=False)
     
-    # Payment tracking fields
+    # Payment status (station perspective)
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('charged', 'Charged'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
     payment_status = models.CharField(
         max_length=20, 
-        choices=[
-            ('pending', 'Pending'),
-            ('charged', 'Charged'),
-            ('failed', 'Failed')
-        ],
+        choices=PAYMENT_STATUS_CHOICES,
         default='pending',
         help_text='Status of station payment for this play'
     )
     payment_error = models.TextField(blank=True, null=True, help_text='Error message if payment failed')
     charged_at = models.DateTimeField(null=True, blank=True, help_text='When station was charged')
+    
+    # Royalty distribution status
+    ROYALTY_STATUS_CHOICES = [
+        ('pending', 'Pending Distribution'),
+        ('calculated', 'Calculated'),
+        ('distributed', 'Distributed'),
+        ('failed', 'Distribution Failed'),
+        ('withheld', 'Withheld'),
+    ]
+    royalty_status = models.CharField(
+        max_length=20,
+        choices=ROYALTY_STATUS_CHOICES,
+        default='pending',
+        help_text='Status of royalty distribution to rights holders'
+    )
+    royalty_distributed_at = models.DateTimeField(null=True, blank=True, help_text='When royalties were distributed')
  
+    # Metadata
     is_archived = models.BooleanField(default=False)
-    active = models.BooleanField(default=False)
+    active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Confidence threshold for auto-verification
+    CONFIDENCE_THRESHOLD = 0.70  # 70%
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['station', 'played_at']),
+            models.Index(fields=['track', 'played_at']),
+            models.Index(fields=['verification_status', 'payment_status']),
+            models.Index(fields=['royalty_status']),
+            models.Index(fields=['is_archived', 'active']),
+        ]
+        ordering = ['-played_at', '-created_at']
+    
+    def __str__(self):
+        return f"PlayLog: {self.track.title} on {self.station.name} ({self.verification_status})"
+    
+    @property
+    def is_verified(self):
+        """Check if playlog is verified and ready for royalty calculation"""
+        return (
+            self.track is not None and 
+            self.verification_status == 'verified' and
+            not self.flagged and
+            (self.avg_confidence_score or 0) >= self.CONFIDENCE_THRESHOLD
+        )
+    
+    @property
+    def is_paid(self):
+        """Check if station has been charged for this play"""
+        return self.payment_status == 'charged'
+    
+    @property
+    def is_royalty_distributed(self):
+        """Check if royalties have been distributed"""
+        return self.royalty_status == 'distributed'
+    
+    def mark_as_disputed(self):
+        """Mark playlog as disputed"""
+        self.verification_status = 'disputed'
+        self.flagged = True
+        self.save(update_fields=['verification_status', 'flagged', 'updated_at'])
+    
+    def mark_as_verified(self):
+        """Mark playlog as verified"""
+        self.verification_status = 'verified'
+        self.flagged = False
+        self.claimed = True
+        self.save(update_fields=['verification_status', 'flagged', 'claimed', 'updated_at'])
+    
+    def mark_payment_charged(self):
+        """Mark station payment as charged"""
+        self.payment_status = 'charged'
+        self.charged_at = timezone.now()
+        self.save(update_fields=['payment_status', 'charged_at', 'updated_at'])
+    
+    def mark_royalty_distributed(self):
+        """Mark royalties as distributed"""
+        self.royalty_status = 'distributed'
+        self.royalty_distributed_at = timezone.now()
+        self.save(update_fields=['royalty_status', 'royalty_distributed_at', 'updated_at'])
 
 
 
